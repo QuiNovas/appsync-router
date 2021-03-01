@@ -27,6 +27,11 @@ from .exceptions import (
 
 
 class Router:
+    """
+    Creates routes from Appsync paths, expressed as *<event["info"]["parentTypeName"]>.<event["info"]["fieldName"]>*,
+    to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
+    """
+
     def __init__(self, allow_multiple_routes=False):
         self.__named_routes = []
         self.__matched_routes = []
@@ -36,18 +41,32 @@ class Router:
 
     @property
     def named_routes(self):
+        """
+        Returns a list containing all routes of type appsync_router.NamedRoute
+        that are currently registered.
+        """
         return self.__named_routes
 
     @property
     def matched_routes(self):
+        """
+        Returns a list containing all routes of type appsync_router.MatchedRoute
+        that are currently registered.
+        """
         return self._sorted_routes(self.__matched_routes)
 
     @property
     def globbed_routes(self):
+        """
+        Returns a list containing all routes of type appsync_router.GlobbedRoute
+        that are currently registered.
+        """
         return self._sorted_routes(self.__globbed_routes)
 
     @property
     def all_routes(self):
+        """Returns a list containing all registered routes"""
+
         res = self._sorted_routes([
             *self.named_routes,
             *self.matched_routes,
@@ -61,6 +80,10 @@ class Router:
 
     @property
     def registered_paths(self):
+        """
+        Returns a list containing all registered paths
+        """
+
         return [
             (x.path if isinstance(x, NamedRoute) else None) or (x.regex if isinstance(x, MatchedRoute) else None) or x.glob
             for x in self.all_routes
@@ -93,6 +116,7 @@ class Router:
         return sorted(routes, key=sorter)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
+        """Returns all registered routes that match **path**"""
         res = []
 
         for x in self.__named_routes:
@@ -118,6 +142,8 @@ class Router:
 
     @typechecked
     def add_route(self, route: Route) -> Route:
+        """Registers a route"""
+
         if isinstance(route, DefaultRoute):
             if self.default_route is not None:
                 raise RouteAlreadyExistsException("A default route already exists")
@@ -143,6 +169,8 @@ class Router:
 
     @typechecked
     def remove_route(self, route: Route) -> Route:
+        """Removes a route"""
+
         if isinstance(route, DefaultRoute):
             self.default_route = None
         else:
@@ -160,9 +188,8 @@ class Router:
     @typechecked
     def default(self, func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
         """
-        Sets the default route
-        Return value:
-        returns a function that must accept a Dict as its sole argument
+        Used as a decorator to set **default_route**. If **default_route** is
+        alread set an exception will be raised.
         """
         if self.default_route is not None:
             raise RouteAlreadyExistsException("A default route has already been registered")
@@ -174,8 +201,7 @@ class Router:
     @typechecked
     def route(self, path: Union[str, List[str]]) -> Callable[[Dict], Any]:
         """
-        Accept a route and return a decorated function after passing that function
-        to the Dict of routes to be called by handle_route
+        Used as a decorator to register a function as an appsync_router.NamedRoute
 
         Keyword arguments:
         route: An appsync route expressed as <parent type>.<object type>
@@ -209,11 +235,10 @@ class Router:
     @typechecked
     def matched_route(self, regex: Union[str, Pattern], priority: Optional[int] = 0) -> Callable[[Dict], Any]:
         """
-        Accept a regex to be used for matching routes and return a decorated function after passing
-        that function to the Dict of routes to be called by handle_route
+        Used as a decorator to register an appsync_router.MatchedRoute
 
         Keyword arguments:
-        regex: A string representing a regular expression to match routes against
+        regex: A string representing a regular expression to match routes against or an instance of re.Pattern
 
         Return value:
         returns a function that must accept a Dict as its sole argument
@@ -240,8 +265,7 @@ class Router:
     @typechecked
     def globbed_route(self, glob: str, priority: Optional[int] = 0) -> Callable[[Dict], Any]:
         """
-        Accept a glob pattern to be used for matching routes and return a decorated function
-        after passing that function to the Dict of routes to be called by handle_route
+        Used as a decorator to register an appsync_router.GlobbedRoute
 
         Keyword arguments:
         glob: A string used for Unix style glob matching
@@ -269,7 +293,7 @@ class Router:
     @typechecked
     def resolve(self, event: Dict) -> Any:
         """
-        Looks up the route for a call based on the parentType and field in event["info"]
+        Looks up the route for a call based on the parentTypeName and fieldName in event["info"]
         The event arg must, at minimum, contain the info Dict that Appsync places inside of the Lambda event.
         The event arg is the sole argument passed to the route handler. If the route doesn't exist and
         default_route is None, then appsync_tools.exceptions.NonExistentRoute will be raised
@@ -331,6 +355,7 @@ class Router:
 
     @typechecked
     def validate_path(self, path: str) -> str:
+        """Raises an exception if a path is invalid or already exists as"""
         if len(path.split(".")) != 2:
             raise ValueError("Explicit routes must take the form of <parentTypeName>.<field>")
 
