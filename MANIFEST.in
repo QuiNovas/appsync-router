@@ -4,3 +4,4 @@ include README.rst
 
 # Include all ini files in packages under src
 recursive-include src
+recursive-include src/appsync_router/templates *

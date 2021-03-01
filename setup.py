@@ -18,6 +18,7 @@ setup(
     install_requires=["typeguard", "appsync-tools"],
     scripts=["src/appsync_router/scripts/appsync-app-builder"],
     python_requires=">=3.8",
+    include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

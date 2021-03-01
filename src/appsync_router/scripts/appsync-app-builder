@@ -3,18 +3,34 @@ import argparse
 from json import load, loads, dumps
 from os import path, getcwd, listdir
 from sys import path as syspath
-from shutil import copytree, copy
-from pprint import pprint
+from shutil import copytree, copy, move
+import appsync_router
 
 
-mod_path = path.abspath(__file__)
+mod_path = path.abspath(appsync_router.__file__)
 mod_dir = path.dirname(mod_path)
-app_dir = f"{mod_dir}/app_template"
+app_dir = f"{mod_dir}/templates/resolver"
 
 
 def make_app(args):
     dest = f"{args.app_dir}/resolvers"
+
+    if path.exists(dest):
+        raise Exception(f"Path {dest} already exists")
+
     copytree(app_dir, dest)
+
+    try:
+        move(f"{dest}/example.json", f"{dest}/..")
+    except Exception:
+        print("example.json already exists. Skipping....")
+
+    print("""
+        App created. You can test your app by running:
+            appsync-app-builder execute --event-file example.json --pprint
+        Or add a new resolver with:
+            appsync-app-builder add-resolver --resolver-name <new name>
+    """)
 
 
 def make_resolver(args):
@@ -36,11 +52,11 @@ def make_resolver(args):
 
 
 def execute_resolver(args):
-    try:
-        syspath.append(getcwd())
-        from resolvers import router
-    except ImportError:
-        print("Not in an application directory")
+    if not path.isdir("resolvers"):
+        raise Exception("Not in an app directory")
+
+    syspath.append(getcwd())
+    from resolvers import router
 
     if (args.event and args.event_file) or (args.event is None and args.event_file is None):
         raise Exception("Specify one of '--event' or '--event-file'")
