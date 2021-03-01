@@ -1,0 +1,6 @@
+# Include the license file
+include LICENSE
+include README.rst
+
+# Include all ini files in packages under src
+recursive-include src

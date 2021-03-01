@@ -1,0 +1,90 @@
+#!/usr/bin/env python3.8
+import argparse
+from json import load, loads, dumps
+from os import path, getcwd, listdir
+from sys import path as syspath
+from shutil import copytree, copy
+from pprint import pprint
+
+
+mod_path = path.abspath(__file__)
+mod_dir = path.dirname(mod_path)
+app_dir = f"{mod_dir}/app_template"
+
+
+def make_app(args):
+    dest = f"{args.app_dir}/resolvers"
+    copytree(app_dir, dest)
+
+
+def make_resolver(args):
+    if "resolvers" not in listdir(args.app_dir):
+        raise Exception("Not in a directory that contains an app")
+
+    if not args.resolver_name:
+        raise Exception("Missing argument '--resolver-name'")
+
+    if args.resolver_name.endswith(".py"):
+        args.resolver_name = {args.resolver_name}.replace(".py", "")
+
+    file_path = f"{args.app_dir}/resolvers/{args.resolver_name}.py"
+
+    if path.isfile(file_path):
+        raise Exception(f"Resolver {args.resolver_name} already exists.")
+
+    copy(f"{app_dir}/../resolver_template.py", file_path)
+
+
+def execute_resolver(args):
+    try:
+        syspath.append(getcwd())
+        from resolvers import router
+    except ImportError:
+        print("Not in an application directory")
+
+    if (args.event and args.event_file) or (args.event is None and args.event_file is None):
+        raise Exception("Specify one of '--event' or '--event-file'")
+
+    if args.event:
+        event = loads(args.event)
+    else:
+        with open(args.event_file, "r") as f:
+            event = load(f)
+
+    res = router.resolve(event)
+
+    results = []
+    for item in res.results:
+        route = item.route.to_dict
+        route["callable"] = route["callable"].__name__
+        value = item.value
+        results.append({
+            "route": route,
+            "value": value
+        })
+
+    if args.pprint:
+        print(dumps(results, indent=4))
+    else:
+        print(dumps(results))
+
+
+cmds = {
+    "make-app": make_app,
+    "add-resolver": make_resolver,
+    "execute": execute_resolver
+}
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--app-dir", type=str, default=getcwd())
+parser.add_argument("--resolver-name", type=str, default="")
+parser.add_argument("--event", default=None)
+parser.add_argument("--event-file", default=None)
+parser.add_argument("--pprint", action="store_true")
+parser.add_argument("cmd", type=str, choices=cmds.keys())
+args = parser.parse_args()
+
+if args.cmd not in cmds:
+    raise Exception(f"Unknown command '{args.cmd}'")
+
+cmds[args.cmd](args)
