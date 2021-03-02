@@ -250,7 +250,7 @@ Responses
    :members:
 
 Exceptions
-----------
+==========
 .. automodule:: appsync_router.exceptions
    :members:
 
