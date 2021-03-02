@@ -30,13 +30,17 @@ class Router:
     """
     Creates routes from Appsync paths, expressed as *<event["info"]["parentTypeName"]>.<event["info"]["fieldName"]>*,
     to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
+
+    :Keyword Arguments:
+         *  *allow_multiple_routes:* (``bool``) - If False will raise ``appsync_router.exceptions.MultipleRoutesFoundException`` if multiple routes are matched for path
     """
 
-    def __init__(self, allow_multiple_routes=False):
+    def __init__(self, allow_multiple_routes: bool = False):
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
         self.allow_multiple_routes = allow_multiple_routes
+        #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
         self.default_route = None
 
     @property
@@ -44,6 +48,9 @@ class Router:
         """
         Returns a list containing all routes of type appsync_router.NamedRoute
         that are currently registered.
+
+        :returns:
+            ``list``
         """
         return self.__named_routes
 
@@ -52,6 +59,9 @@ class Router:
         """
         Returns a list containing all routes of type appsync_router.MatchedRoute
         that are currently registered.
+
+        :returns:
+            ``list``
         """
         return self._sorted_routes(self.__matched_routes)
 
@@ -60,12 +70,20 @@ class Router:
         """
         Returns a list containing all routes of type appsync_router.GlobbedRoute
         that are currently registered.
+
+        :returns:
+            ``list``
         """
         return self._sorted_routes(self.__globbed_routes)
 
     @property
     def all_routes(self):
-        """Returns a list containing all registered routes"""
+        """
+        Returns a list containing all registered routes
+
+        :returns:
+            ``list``
+        """
 
         res = self._sorted_routes([
             *self.named_routes,
@@ -82,6 +100,9 @@ class Router:
     def registered_paths(self):
         """
         Returns a list containing all registered paths
+
+        :returns:
+            ``list``
         """
 
         return [
@@ -116,7 +137,20 @@ class Router:
         return sorted(routes, key=sorter)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
-        """Returns all registered routes that match **path**"""
+        """
+        Returns all registered routes that match *path*
+
+        :params:
+            * *path:* (``str``): The path to check routes against
+
+        :Keyword Arguments:
+            * *include_default:* (``bool``) - If True will return self.default_route, if one is registered
+            * *to_dict:* (``bool``) - Return routes as a list of dicts instead of objects
+
+        :returns:
+            ``list``
+
+        """
         res = []
 
         for x in self.__named_routes:
@@ -142,7 +176,15 @@ class Router:
 
     @typechecked
     def add_route(self, route: Route) -> Route:
-        """Registers a route"""
+        """
+        Registers a route
+
+        :params:
+            * *route*: (``Route``): An instance of NamedRoute, MatchedRoute or GlobbedRoute to register
+
+        :returns:
+            ``appsync_router.Route``
+        """
 
         if isinstance(route, DefaultRoute):
             if self.default_route is not None:
@@ -169,7 +211,15 @@ class Router:
 
     @typechecked
     def remove_route(self, route: Route) -> Route:
-        """Removes a route"""
+        """
+        Removes a route
+
+        :params:
+            * *route:* (``Route``): An instance of appsync_tools.Route
+
+        :returns:
+            ``appsync_router.Route``
+        """
 
         if isinstance(route, DefaultRoute):
             self.default_route = None
@@ -188,8 +238,10 @@ class Router:
     @typechecked
     def default(self, func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
         """
-        Used as a decorator to set **default_route**. If **default_route** is
-        alread set an exception will be raised.
+        Used as a decorator to set ``self.default_route``. If ``self.default_route`` is set.
+
+        :returns:
+            ``Callable``
         """
         if self.default_route is not None:
             raise RouteAlreadyExistsException("A default route has already been registered")
@@ -203,11 +255,11 @@ class Router:
         """
         Used as a decorator to register a function as an appsync_router.NamedRoute
 
-        Keyword arguments:
-        route: An appsync route expressed as <parent type>.<object type>
+        :Keyword Arguments:
+            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name>``
 
-        Return value:
-        returns a function that must accept a Dict as its sole argument
+        :returns:
+            ``Callable``
         """
 
         if isinstance(path, str):
@@ -237,11 +289,12 @@ class Router:
         """
         Used as a decorator to register an appsync_router.MatchedRoute
 
-        Keyword arguments:
-        regex: A string representing a regular expression to match routes against or an instance of re.Pattern
+        :Keyword Arguments:
+            * *regex:* (``str|re.Pattern``): A regex string pattern or instance of re.Pattern to match routes against
+            * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
 
-        Return value:
-        returns a function that must accept a Dict as its sole argument
+        :returns:
+            ``Callable``
         """
         if isinstance(regex, str):
             regex = compile(regex)
@@ -267,11 +320,12 @@ class Router:
         """
         Used as a decorator to register an appsync_router.GlobbedRoute
 
-        Keyword arguments:
-        glob: A string used for Unix style glob matching
+        :Keyword Arguments:
+            * *glob:* (``str``): A Unix-style glob pattern to match routes against
+            * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
 
-        Return value:
-        returns a function that must accept a Dict as its sole argument
+        :returns:
+            ``Callable``
         """
 
         if glob in self.registered_paths:
@@ -291,12 +345,17 @@ class Router:
         return inner
 
     @typechecked
-    def resolve(self, event: Dict) -> Any:
+    def resolve(self, event: Dict) -> Response:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]
-        The event arg must, at minimum, contain the info Dict that Appsync places inside of the Lambda event.
-        The event arg is the sole argument passed to the route handler. If the route doesn't exist and
-        default_route is None, then appsync_tools.exceptions.NonExistentRoute will be raised
+        If the path doesn't match a registered route and ``self.default_route`` is None, then
+        ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
+
+        :params:
+            * *event:* An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum, contain the info Dict that Appsync places inside of the Lambda event.
+
+        :returns:
+            ``appsync_router.Response``
         """
 
         field = event["info"]["parentTypeName"]
@@ -355,7 +414,16 @@ class Router:
 
     @typechecked
     def validate_path(self, path: str) -> str:
-        """Raises an exception if a path is invalid or already exists as"""
+        """
+        Raises an exception if a path is invalid or already exists
+
+        :params:
+            * *path:* (``str``): An Appsync path
+
+        :returns:
+            ``str``
+        """
+
         if len(path.split(".")) != 2:
             raise ValueError("Explicit routes must take the form of <parentTypeName>.<field>")
 
