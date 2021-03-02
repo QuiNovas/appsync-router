@@ -1,7 +1,7 @@
 This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.
 ===============================================================================================
 
-Full documentation is available `HERE <docs/build/index.html>`_
+Full documentation is available `HERE <https://quinovas.github.io/appsync-router>`_
 
 Features:
 ---------
