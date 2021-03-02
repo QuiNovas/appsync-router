@@ -16,7 +16,7 @@ setup(
     packages=['appsync_router'],
     package_dir={'appsync_router': 'src/appsync_router'},
     install_requires=["typeguard", "appsync-tools"],
-    scripts=["src/appsync_router/scripts/appsync-app-builder"],
+    scripts=["src/appsync_router/scripts/appsync-router"],
     python_requires=">=3.8",
     include_package_data=True,
     classifiers=[

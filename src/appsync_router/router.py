@@ -32,14 +32,16 @@ class Router:
     to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
 
     :Keyword Arguments:
-         *  *allow_multiple_routes:* (``bool``) - If False will raise ``appsync_router.exceptions.MultipleRoutesFoundException`` if multiple routes are matched for path
+        * *allow_multiple_routes:* (``bool``): If False will raise ``appsync_router.exceptions.MultipleRoutesFoundException`` if multiple routes are matched for path
+        * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
     """
 
-    def __init__(self, allow_multiple_routes: bool = False):
+    def __init__(self, allow_multiple_routes: bool = False, chain: bool = False):
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
         self.allow_multiple_routes = allow_multiple_routes
+        self.chain = chain
         #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
         self.default_route = None
 
@@ -345,10 +347,10 @@ class Router:
         return inner
 
     @typechecked
-    def resolve(self, event: Dict) -> Response:
+    def resolve(self, event: Any) -> Response:
         """
-        Looks up the route for a call based on the parentTypeName and fieldName in event["info"]
-        If the path doesn't match a registered route and ``self.default_route`` is None, then
+        Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
+        and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
         ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
 
         :params:
@@ -373,11 +375,16 @@ class Router:
             else:
                 raise NoRouteFoundException(f"No matching routes for {path}")
 
-        results = Response(path)
+        results = Response(path, chained=self.chain)
         for route in routes_to_call:
             result = route.callable(event)
+            if self.chain is True:
+                event = result
             item = Item(result, route)
             results.add_item(item)
+
+        if self.chain is True:
+            Response.chained_result = item
 
         return results
 

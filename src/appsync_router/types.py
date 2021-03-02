@@ -112,11 +112,14 @@ class Item:
 
 class Response:
     """An object containing a list of appsync_router.types.Item"""
-    def __init__(self, path: str):
+    def __init__(self, path: str, chained: bool = False):
         #: The path that triggered this Response
         self.path = path
         #: A list of Item
         self.results = []
+
+        if chained is True:
+            self.chained_result = None
 
     @typechecked
     def add_item(self, item: Item):

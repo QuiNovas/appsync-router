@@ -8,7 +8,7 @@ module_dir = path.dirname(__file__)
 with open(f"{module_dir}/config.json", "r") as f:
     config = load(f)
 
-routes = Router(allow_multiple_routes=config.get("allow_multiple_routes", True))
+routes = Router(**config)
 
 resolvers = [x.name for x in walk_packages(path=["resolvers"])]
 

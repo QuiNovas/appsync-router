@@ -27,9 +27,9 @@ def make_app(args):
 
     print("""
         App created. You can test your app by running:
-            appsync-app-builder execute --event-file example.json --pprint
+            appsync-router execute --event-file example.json --pprint
         Or add a new resolver with:
-            appsync-app-builder add-resolver --resolver-name <new name>
+            appsync-router add-resolver --resolver-name <new name>
     """)
 
 

@@ -1,17 +1,10 @@
-.. appsync-router documentation master file, created by
-   sphinx-quickstart on Mon Mar  1 14:28:23 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.
+===============================================================================================
 
-Welcome to appsync-router's documentation!
-==========================================
+Full documentation is available `HERE <docs/build/index.html>`_
 
-.. toctree::
-   :maxdepth: 2
-
-Introduction
-============
-This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda. It provides the following features:
+Features:
+---------
 
 - Path based routing based on the Appsync parent type and field
 - Regex based path matching
@@ -240,48 +233,4 @@ would look like this:
    {
       "allow_multiple_routes": true,
       "chain": true
-   }
-
-
-Classes
-=======
-
-The Router class
-----------------
-.. autoclass:: appsync_router.Router
-   :members:
-
-Route types
------------
-.. autoclass:: appsync_router.Item
-   :members:
-
-.. autoclass:: appsync_router.NamedRoute
-   :members:
-
-.. autoclass:: appsync_router.MatchedRoute
-   :members:
-
-.. autoclass:: appsync_router.GlobbedRoute
-   :members:
-
-.. autoclass:: appsync_router.DefaultRoute
-   :members:
-
-Responses
----------
-.. autoclass:: appsync_router.Response
-   :members:
-
-Exceptions
-==========
-.. automodule:: appsync_router.exceptions
-   :members:
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+   }=============
