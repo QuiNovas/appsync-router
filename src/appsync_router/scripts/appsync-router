@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.8
-import argparse
+import argh
 from json import load, loads, dumps
 from os import path, getcwd, listdir
 from sys import path as syspath
@@ -9,16 +9,17 @@ import appsync_router
 
 mod_path = path.abspath(appsync_router.__file__)
 mod_dir = path.dirname(mod_path)
-app_dir = f"{mod_dir}/templates/resolver"
+APP_DIR = f"{mod_dir}/templates/resolver"
 
 
-def make_app(args):
-    dest = f"{args.app_dir}/resolvers"
+def make_app(app_dir="."):
+    dest = f"{app_dir}/resolvers"
 
     if path.exists(dest):
-        raise Exception(f"Path {dest} already exists")
+        print(f"Path {dest} already exists")
+        exit()
 
-    copytree(app_dir, dest)
+    copytree(APP_DIR, dest)
 
     try:
         move(f"{dest}/example.json", f"{dest}/..")
@@ -27,44 +28,47 @@ def make_app(args):
 
     print("""
         App created. You can test your app by running:
-            appsync-router execute --event-file example.json --pprint
+            appsync-router execute-resolver --event-file example.json --pprint
         Or add a new resolver with:
-            appsync-router add-resolver --resolver-name <new name>
+            appsync-router add-resolver --name <new name>
     """)
 
 
-def make_resolver(args):
-    if "resolvers" not in listdir(args.app_dir):
-        raise Exception("Not in a directory that contains an app")
+def add_resolver(name=None):
+    if "resolvers" not in listdir("."):
+        print("Not in a directory that contains an app")
+        exit()
 
-    if not args.resolver_name:
-        raise Exception("Missing argument '--resolver-name'")
+    if name is None:
+        raise argh.exceptions.CommandError("Missing argument '--name'")
 
-    if args.resolver_name.endswith(".py"):
-        args.resolver_name = {args.resolver_name}.replace(".py", "")
+    if name.endswith(".py"):
+        name = name.replace(".py", "").replace("-", "_")
 
-    file_path = f"{args.app_dir}/resolvers/{args.resolver_name}.py"
+    file_path = f"resolvers/{name}.py"
 
     if path.isfile(file_path):
-        raise Exception(f"Resolver {args.resolver_name} already exists.")
+        print("Resolver {name} already exists.")
+        exit()
 
-    copy(f"{app_dir}/../resolver_template.py", file_path)
+    copy(f"{APP_DIR}/../resolver_template.py", file_path)
 
 
-def execute_resolver(args):
+def execute_resolver(event=None, event_file=None, pprint=False):
     if not path.isdir("resolvers"):
-        raise Exception("Not in an app directory")
+        print("Not in an app directory")
+        exit()
 
     syspath.append(getcwd())
     from resolvers import router
 
-    if (args.event and args.event_file) or (args.event is None and args.event_file is None):
-        raise Exception("Specify one of '--event' or '--event-file'")
+    if (event and event_file) or (event is None and event_file is None):
+        raise argh.exceptions.CommandError("Specify one of '--event' or '--event-file'")
 
-    if args.event:
-        event = loads(args.event)
+    if event:
+        event = loads(event)
     else:
-        with open(args.event_file, "r") as f:
+        with open(event_file, "r") as f:
             event = load(f)
 
     res = router.resolve(event)
@@ -79,28 +83,17 @@ def execute_resolver(args):
             "value": value
         })
 
-    if args.pprint:
+    if pprint:
         print(dumps(results, indent=4))
     else:
         print(dumps(results))
 
 
-cmds = {
-    "make-app": make_app,
-    "add-resolver": make_resolver,
-    "execute": execute_resolver
-}
+parser = argh.ArghParser()
+parser.add_commands([
+    make_app,
+    add_resolver,
+    execute_resolver
+])
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--app-dir", type=str, default=getcwd())
-parser.add_argument("--resolver-name", type=str, default="")
-parser.add_argument("--event", default=None)
-parser.add_argument("--event-file", default=None)
-parser.add_argument("--pprint", action="store_true")
-parser.add_argument("cmd", type=str, choices=cmds.keys())
-args = parser.parse_args()
-
-if args.cmd not in cmds:
-    raise Exception(f"Unknown command '{args.cmd}'")
-
-cmds[args.cmd](args)
+parser.dispatch()

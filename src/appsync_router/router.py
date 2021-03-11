@@ -30,18 +30,12 @@ class Router:
     """
     Creates routes from Appsync paths, expressed as *<event["info"]["parentTypeName"]>.<event["info"]["fieldName"]>*,
     to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
-
-    :Keyword Arguments:
-        * *allow_multiple_routes:* (``bool``): If False will raise ``appsync_router.exceptions.MultipleRoutesFoundException`` if multiple routes are matched for path
-        * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
     """
 
-    def __init__(self, allow_multiple_routes: bool = False, chain: bool = False):
+    def __init__(self):
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
-        self.allow_multiple_routes = allow_multiple_routes
-        self.chain = chain
         #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
         self.default_route = None
 
@@ -347,7 +341,7 @@ class Router:
         return inner
 
     @typechecked
-    def resolve(self, event: Any) -> Response:
+    def resolve(self, event: Any) -> Item:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
@@ -355,6 +349,43 @@ class Router:
 
         :params:
             * *event:* An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum, contain the info Dict that Appsync places inside of the Lambda event.
+
+        :returns:
+            ``appsync_router.Item``
+        """
+
+        field = event["info"]["parentTypeName"]
+        subfield = event["info"]["fieldName"]
+        path = f"{field}.{subfield}"
+
+        matched_routes = self.get_routes(path, include_default=False)
+
+        if len(matched_routes) > 1:
+            raise MultipleRoutesFoundExcepion(f"Multiple routes match path {path}")
+
+        if len(matched_routes) == 0:
+            if self.default_route is not None:
+                matched_routes = [self.default_route]
+            else:
+                raise NoRouteFoundException(f"No matching routes for {path}")
+
+        route = matched_routes[0]
+        return Item(
+            route.callable(event),
+            route
+        )
+
+    @typechecked
+    def resolve_all(self, event: Any, chain=False) -> Response:
+        """
+        Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``chain`` is True then the first route will be passed ``event``
+        and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
+        ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
+
+        :params:
+            * *event:* (``dict``) - An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum, contain the info Dict that
+            Appsync places inside of the Lambda event.
+            * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
 
         :returns:
             ``appsync_router.Response``
@@ -365,9 +396,6 @@ class Router:
         path = f"{field}.{subfield}"
 
         routes_to_call = self.get_routes(path, include_default=False)
-
-        if len(routes_to_call) > 1 and self.allow_multiple_routes is not True:
-            raise MultipleRoutesFoundExcepion(f"Multiple routes match path {path}")
 
         if len(routes_to_call) == 0:
             if self.default_route is not None:
@@ -382,9 +410,6 @@ class Router:
                 event = result
             item = Item(result, route)
             results.add_item(item)
-
-        if self.chain is True:
-            Response.chained_result = item
 
         return results
 

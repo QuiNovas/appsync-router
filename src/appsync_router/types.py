@@ -1,6 +1,5 @@
 from re import Pattern
 from typing import Any, Callable, Dict, Union, Optional
-
 from typeguard import typechecked
 
 
@@ -101,6 +100,11 @@ class DefaultRoute(Route):
 
 class Item:
     """An object containing the response from a Route's callable and information about the Route"""
+
+    value: Any
+    route: str
+    resolver: Any
+
     def __init__(self, item: Any, route: Route):
         #: The value returned by the callable for self.route
         self.value = item
@@ -117,9 +121,7 @@ class Response:
         self.path = path
         #: A list of Item
         self.results = []
-
-        if chained is True:
-            self.chained_result = None
+        self.chained = chained
 
     @typechecked
     def add_item(self, item: Item):
@@ -129,7 +131,14 @@ class Response:
     @property
     def values(self) -> list:
         """Returns a list containing the value attribute of all **Items** in **Response**"""
-        return [
-            x.value
-            for x in self.results
-        ]
+        if self.results:
+            return [
+                x.value
+                for x in self.results
+            ]
+
+    @property
+    def final(self) -> Item:
+        """Returns a list containing the value attribute of all **Items** in **Response**"""
+        if self.results:
+            return self.results[-1]

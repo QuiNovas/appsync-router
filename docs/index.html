@@ -379,13 +379,14 @@ would look like this:</p>
 <h2>The Router class<a class="headerlink" href="#the-router-class" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="appsync_router.Router">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">appsync_router.</span></code><code class="sig-name descname"><span class="pre">Router</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">allow_multiple_routes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#appsync_router.Router" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">appsync_router.</span></code><code class="sig-name descname"><span class="pre">Router</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">allow_multiple_routes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#appsync_router.Router" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates routes from Appsync paths, expressed as <em>&lt;event[“info”][“parentTypeName”]&gt;.&lt;event[“info”][“fieldName”]&gt;</em>,
 to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()</p>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><em>allow_multiple_routes:</em> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>) - If False will raise <code class="docutils literal notranslate"><span class="pre">appsync_router.exceptions.MultipleRoutesFoundException</span></code> if multiple routes are matched for path</p></li>
+<li><p><em>allow_multiple_routes:</em> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>): If False will raise <code class="docutils literal notranslate"><span class="pre">appsync_router.exceptions.MultipleRoutesFoundException</span></code> if multiple routes are matched for path</p></li>
+<li><p><em>chain:</em> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>): If True then as then the first resolved route will accept <code class="docutils literal notranslate"><span class="pre">event</span></code> whith each subsequent matched route being passed the result of the prior</p></li>
 </ul>
 </dd>
 </dl>
@@ -554,9 +555,9 @@ that are currently registered.</p>
 
 <dl class="py method">
 <dt id="appsync_router.Router.resolve">
-<code class="sig-name descname"><span class="pre">resolve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">appsync_router.types.Response</span><a class="headerlink" href="#appsync_router.Router.resolve" title="Permalink to this definition">¶</a></dt>
-<dd><p>Looks up the route for a call based on the parentTypeName and fieldName in event[“info”]
-If the path doesn’t match a registered route and <code class="docutils literal notranslate"><span class="pre">self.default_route</span></code> is None, then
+<code class="sig-name descname"><span class="pre">resolve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">appsync_router.types.Response</span><a class="headerlink" href="#appsync_router.Router.resolve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Looks up the route for a call based on the parentTypeName and fieldName in event[“info”]. If <code class="docutils literal notranslate"><span class="pre">self.chain</span></code> is True then the first route will be passed <code class="docutils literal notranslate"><span class="pre">event</span></code>
+and any subsequent matches will be passed the result of the prior route. If the path doesn’t match a registered route and <code class="docutils literal notranslate"><span class="pre">self.default_route</span></code> is None, then
 <code class="docutils literal notranslate"><span class="pre">appsync_tools.exceptions.NonExistentRoute</span></code> will be raised.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Params</dt>
@@ -782,7 +783,7 @@ If the path doesn’t match a registered route and <code class="docutils literal
 <h2>Responses<a class="headerlink" href="#responses" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="appsync_router.Response">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">appsync_router.</span></code><code class="sig-name descname"><span class="pre">Response</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#appsync_router.Response" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">appsync_router.</span></code><code class="sig-name descname"><span class="pre">Response</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chained</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#appsync_router.Response" title="Permalink to this definition">¶</a></dt>
 <dd><p>An object containing a list of appsync_router.types.Item</p>
 <dl class="py method">
 <dt id="appsync_router.Response.add_item">
