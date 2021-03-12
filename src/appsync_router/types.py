@@ -1,14 +1,37 @@
 from re import Pattern
+from collections.abc import MutableMapping
 from typing import Any, Callable, Dict, Union, Optional
 from typeguard import typechecked
 
 
-class Route:
-    pass
+class Route(MutableMapping):
+    def __init__(self):
+        super().__init__()
+
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __str__(self):
+        '''returns simple dict representation of the mapping'''
+        return str(self.__dict__)
 
 
 class NamedRoute(Route):
     def __init__(self, path: str, callable: Callable[[Dict], Any]):
+        super().__init__()
+
         #: Path to resolve
         self.path = path
         #: Callable registered to this path
@@ -98,7 +121,7 @@ class DefaultRoute(Route):
         }
 
 
-class Item:
+class Item(MutableMapping):
     """An object containing the response from a Route's callable and information about the Route"""
 
     value: Any
@@ -106,6 +129,7 @@ class Item:
     resolver: Any
 
     def __init__(self, item: Any, route: Route):
+        super().__init__()
         #: The value returned by the callable for self.route
         self.value = item
         #: The Route that matched the path passed to appsync_router.Router.resolve
@@ -113,10 +137,31 @@ class Item:
         #: The module that this resolver's callable belongs to
         self.resolver = route.callable.__module__
 
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __str__(self):
+        '''returns simple dict representation of the mapping'''
+        return str(self.__dict__)
+
 
 class Response:
     """An object containing a list of appsync_router.types.Item"""
     def __init__(self, path: str, chained: bool = False):
+        super().__init__()
+
         #: The path that triggered this Response
         self.path = path
         #: A list of Item
@@ -142,3 +187,22 @@ class Response:
         """Returns a list containing the value attribute of all **Items** in **Response**"""
         if self.results:
             return self.results[-1]
+
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __str__(self):
+        '''returns simple dict representation of the mapping'''
+        return str(self.__dict__)

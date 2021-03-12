@@ -1,20 +1,42 @@
 #!/usr/bin/env python3.8
-import argh
 from json import load, loads, dumps
+from json.decoder import JSONDecodeError
 from os import path, getcwd, listdir
 from sys import path as syspath
 from shutil import copytree, copy, move
+import argh
 import appsync_router
 
 
 mod_path = path.abspath(appsync_router.__file__)
 mod_dir = path.dirname(mod_path)
 APP_DIR = f"{mod_dir}/templates/resolver"
+LAMBDA_DIR = f"{mod_dir}/templates/lambda"
 
 
-def make_app(app_dir="."):
-    dest = f"{app_dir}/resolvers"
+def make_app(
+    no_lambda=False,
+    lambda_author="",
+    author_email="",
+    lambda_name="appsync-resolver",
+    lambda_description="Appsync resolver Lambda",
+    lambda_python_version=">=3.8"
+):
 
+    if no_lambda is False:
+        make_lambda(
+            lambda_author=lambda_author,
+            author_email=author_email,
+            lambda_name=lambda_name,
+            lambda_description=lambda_description,
+            lambda_python_version=lambda_python_version
+        )
+
+        dest = "./src/lambda_function/resolvers"
+        lambda_cmd = "appsync-router execute-lambda --event-file example.json --pprint"
+    else:
+        dest = "./resolvers"
+        lambda_cmd = ""
     if path.exists(dest):
         print(f"Path {dest} already exists")
         exit()
@@ -26,11 +48,51 @@ def make_app(app_dir="."):
     except Exception:
         print("example.json already exists. Skipping....")
 
-    print("""
+    print(f"""
         App created. You can test your app by running:
             appsync-router execute-resolver --event-file example.json --pprint
+            {lambda_cmd}
+        from {"/".join(dest.split("/")[0:-1])}.
         Or add a new resolver with:
             appsync-router add-resolver --name <new name>
+        from {"/".join(dest.split("/")[0:-1])}
+    """)
+
+
+def make_lambda(**kwargs):
+    opts = {
+        k.upper(): v
+        for k, v in kwargs.items()
+    }
+
+    if listdir():
+        print("""
+            Not in an empty directory. If you want to only create a resolers package
+            then add flag --no-lambda. Otherwise run make-app in an empty directory.
+        """)
+        exit()
+
+    copytree(LAMBDA_DIR, f"{getcwd()}/", dirs_exist_ok=True)
+
+    with open(f"{LAMBDA_DIR}/setup.py", "r") as f:
+        setup_file = f.read().format(**opts)
+        with open("setup.tmp", "w") as tmp_f:
+            tmp_f.write(setup_file)
+            move("setup.tmp", "setup.py")
+
+    try:
+        import lambda_setuptools
+        install_msg = "Looks like lambda-setuptools is already installed"
+    except ImportError:
+        install_msg = """
+        You will need to install lambda-setuptools if you wish to build a lambda package for upload.
+        You can install it by running `pip install lambda-setuptools`
+        """
+
+    print(f"""
+        {install_msg}
+        You can build your Lambda package by running `python setup.py ldist_wheel`. See the lambda-setuptools docs
+        for more build options.
     """)
 
 
@@ -54,7 +116,7 @@ def add_resolver(name=None):
     copy(f"{APP_DIR}/../resolver_template.py", file_path)
 
 
-def execute_resolver(event=None, event_file=None, pprint=False):
+def execute_resolver(event=None, event_file=None, no_pprint=False):
     if not path.isdir("resolvers"):
         print("Not in an app directory")
         exit()
@@ -65,35 +127,99 @@ def execute_resolver(event=None, event_file=None, pprint=False):
     if (event and event_file) or (event is None and event_file is None):
         raise argh.exceptions.CommandError("Specify one of '--event' or '--event-file'")
 
-    if event:
-        event = loads(event)
-    else:
-        with open(event_file, "r") as f:
-            event = load(f)
+    event = get_event(event or event_file)
 
     res = router.resolve(event)
+    return get_execute_results(res, no_pprint=no_pprint)
 
-    results = []
-    for item in res.results:
-        route = item.route.to_dict
-        route["callable"] = route["callable"].__name__
-        value = item.value
-        results.append({
-            "route": route,
-            "value": value
-        })
 
-    if pprint:
-        print(dumps(results, indent=4))
+def get_event(event):
+    try:
+        if isinstance(event, str):
+            event = loads(event)
+        else:
+            try:
+                with open(event, "r") as f:
+                    event = load(f)
+            except FileNotFoundError:
+                print(f"File {event} file does not exist.")
+                exit()
+    except JSONDecodeError:
+        print("Could not parse event. Make sure event is JSON parsable")
+        exit()
+    except Exception:
+        print("Could not parse event. If using --event-file make sure file exists, is readable, and in json format.")
+
+    return event
+
+
+def execute_lambda(
+    event: str = None,
+    event_file: str = None,
+    no_pprint: bool = False,
+    function_name: str = "function",
+    handler: str = "handler"
+):
+    "Executes a lambda function by passing either --event or the contents of --event-file"
+
+    if not path.isdir("resolvers"):
+        print("Not in an app directory")
+        exit()
+
+    if f"{function_name}.py" not in listdir():
+        print(f"No lambda function named {function_name} in current directory")
+        exit()
+
+    try:
+        syspath.append(getcwd())
+        exec(f"from {function_name} import {handler} as lambda_handler")
+    except ImportError:
+        print(f"Could not import {handler} from {function_name}")
+        exit()
+
+    if (event and event_file) or (event is None and event_file is None):
+        raise argh.exceptions.CommandError("Specify one of '--event' or '--event-file'")
+
+    event = get_event(event or event_file)
+
+    res = eval("lambda_handler(event, None)")
+
+    get_execute_results(res, no_pprint=no_pprint)
+
+
+def item_to_dict(item):
+    item.route.callable = item.route.callable.__name__
+    item.route = dict(item.route)
+    return dict(item)
+
+
+def get_execute_results(res, no_pprint=False):
+    if isinstance(res, appsync_router.types.Item):
+        result = item_to_dict(res)
+    elif isinstance(res, appsync_router.types.Response):
+        results = []
+        for item in res.results:
+            results.append(item_to_dict(item))
+            res.results = results
+            result = dict(results)
     else:
-        print(dumps(results))
+        result = res
+
+    try:
+        if no_pprint:
+            print(dumps(result))
+        else:
+            print(dumps(result, indent=4))
+    except JSONDecodeError:
+        print("Lambda return value must be a dict of dict-like object")
 
 
 parser = argh.ArghParser()
 parser.add_commands([
     make_app,
     add_resolver,
-    execute_resolver
+    execute_resolver,
+    execute_lambda,
 ])
 
 parser.dispatch()

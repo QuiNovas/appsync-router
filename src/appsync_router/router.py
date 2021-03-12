@@ -370,10 +370,13 @@ class Router:
                 raise NoRouteFoundException(f"No matching routes for {path}")
 
         route = matched_routes[0]
-        return Item(
+
+        res = Item(
             route.callable(event),
             route
         )
+
+        return res
 
     @typechecked
     def resolve_all(self, event: Any, chain=False) -> Response:
@@ -383,8 +386,7 @@ class Router:
         ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
 
         :params:
-            * *event:* (``dict``) - An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum, contain the info Dict that
-            Appsync places inside of the Lambda event.
+            * *event:* (``dict``) - An event that matches the format passed to Lambda from Appsync. The event arg must, at minimum, contain the info Dict that Appsync places inside event.
             * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
 
         :returns:

@@ -1,7 +1,8 @@
 from os import path
 from pkgutil import walk_packages
-from appsync_router import Router
+from appsync_router import Router, logger
 
+logger.setLevel("DEBUG")
 
 module_dir = path.dirname(__file__)
 routes = Router()
