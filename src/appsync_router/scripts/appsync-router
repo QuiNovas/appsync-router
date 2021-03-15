@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.8
-from json import load, loads, dumps
+from simplejson import load, loads, dumps
 from json.decoder import JSONDecodeError
 from os import path, getcwd, listdir
 from sys import path as syspath
@@ -133,9 +133,9 @@ def execute_resolver(event=None, event_file=None, no_pprint=False):
     return get_execute_results(res, no_pprint=no_pprint)
 
 
-def get_event(event):
+def get_event(event, event_type):
     try:
-        if isinstance(event, str):
+        if event_type == "string":
             event = loads(event)
         else:
             try:
@@ -180,7 +180,8 @@ def execute_lambda(
     if (event and event_file) or (event is None and event_file is None):
         raise argh.exceptions.CommandError("Specify one of '--event' or '--event-file'")
 
-    event = get_event(event or event_file)
+    event_type = "file" if event_file else "string"
+    event = get_event(event or event_file, event_type)
 
     res = eval("lambda_handler(event, None)")
 
