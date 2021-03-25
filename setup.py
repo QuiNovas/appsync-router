@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='appsync-router',
-    version='0.0.4',
+    version='0.1.0',
     description='Routers appsync requests to the correct route.',
     author='Mathew Moon',
     author_email='mmoon@quinovas.com',
