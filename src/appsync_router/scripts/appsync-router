@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.8
 from simplejson import load, loads, dumps
 from json.decoder import JSONDecodeError
+from re import Pattern
 from os import path, getcwd, listdir
 from sys import path as syspath
 from shutil import copytree, copy, move
@@ -191,6 +192,9 @@ def execute_lambda(
 def item_to_dict(item):
     item.route.callable = item.route.callable.__name__
     item.route = dict(item.route)
+    item = dict(item)
+    if isinstance(item["route"].get("regex"), Pattern):
+        item["route"]["regex"] = item["route"]["regex"].pattern
     return dict(item)
 
 
