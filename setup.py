@@ -9,7 +9,7 @@ setup(
     description='A framework for building, testing, and deploying  an Appsync backend using AWS Lambda',
     author='Mathew Moon',
     author_email='mmoon@quinovas.com',
-    url='https://github.com/QuiNovas/appsync-tools',
+    url='https://github.com/QuiNovas/appsync-router',
     license='Apache 2.0',
     long_description=io.open('README.rst', encoding='utf-8').read(),
     long_description_content_type='text/x-rst',

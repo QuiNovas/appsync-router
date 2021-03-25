@@ -11,7 +11,14 @@ Welcome to appsync-router's documentation!
 
 Introduction
 ============
-This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda. It provides the following features:
+
+This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.
+-----------------------------------------------------------------------------------------------
+
+Full documentation is available `HERE <https://quinovas.github.io/appsync-router>`_
+
+Features:
+---------
 
 - Path based routing based on the Appsync parent type and field
 - Regex based path matching
@@ -73,8 +80,8 @@ The second way is to manually add a route.
 
 Chained routes
 --------------
-When ``chained=True`` is passed to the constructor for ``appsync_router.Router`` then the first matched route receives the event passed to ``Router.resolve()``, with
-subsequent routes receiving the response from the previous as its argument. The last router's response.value is placed in the ``Router.resolve()`` ``chain_result``
+When ``chained=True`` is passed to ``Router.resolve_all()`` then the first matched route receives the event passed to ``Router.resolve_all()``, with
+subsequent routes receiving the response from the previous as its argument. The last router's response.value is placed in the responses ``chain_result``
 attribute.
 
 
@@ -82,6 +89,7 @@ Resolver framework
 ==================
 
 The module installs a console script into ``$PATH`` that can be used to:
+
 - Create a resolver based app skeleton
 - Generate a Lambda function using lambda_setup_tools package (must be installed separately)
 - Test routes/Lambda function by passing an event or event file
@@ -181,7 +189,7 @@ Test your resolver using the script:
 
 ::
 
-   >appsync-router execute --event '{"info": {"parentTypeName": "Query", "fieldName": "GetFoo"}}'
+   >appsync-router execute-lambda --event '{"info": {"parentTypeName": "Query", "fieldName": "GetFoo"}}'
    Hello Foo!!!!!
    [
       {
@@ -228,19 +236,12 @@ And execute with:
    [{'info': {'parentTypeName': 'Query', 'fieldName': 'GetFoo'}}]
 
 
-Router options when using resolvers
------------------------------------
-It is important to note that when using resolvers your Router() object comes from the local resolvers module and so you cannot pass arguments
-to the constructor directly. To configure the Router() object use resolvers/config.json. The config file is a json document that contains any
-keyword arguments to be passed to the Router() constructor. For instance, if you wanted to create a chainable router then your resolvers/config.json
-would look like this:
+Add a resolvers package without creating a Lambda package
+---------------------------------------------------------
 
-.. code-block:: json
+Passing ``--no-lambda`` to ``appsync-router make-app`` will create a resolvers package in the current working directory without creating the full Lambda skeleton
 
-   {
-      "allow_multiple_routes": true,
-      "chain": true
-   }
+You can also execute a route directly by calling ``appsync-router execute-resolver --event``. This passes the event directly to the route's callable instead of the handler of a Lambda
 
 
 Classes

@@ -87,6 +87,8 @@
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">Welcome to appsync-router’s documentation!</a></li>
 <li><a class="reference internal" href="#introduction">Introduction</a><ul>
+<li><a class="reference internal" href="#this-module-provides-a-framework-for-creating-a-backend-to-resolve-appsync-calls-in-aws-lambda">This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.</a></li>
+<li><a class="reference internal" href="#features">Features:</a></li>
 <li><a class="reference internal" href="#how-it-works">How it works</a></li>
 <li><a class="reference internal" href="#creating-routes">Creating routes</a></li>
 <li><a class="reference internal" href="#chained-routes">Chained routes</a></li>
@@ -95,7 +97,7 @@
 <li><a class="reference internal" href="#resolver-framework">Resolver framework</a><ul>
 <li><a class="reference internal" href="#resolvers">resolvers</a></li>
 <li><a class="reference internal" href="#creating-a-lambda-that-uses-the-resolvers-framework">Creating a lambda that uses the resolvers framework</a></li>
-<li><a class="reference internal" href="#router-options-when-using-resolvers">Router options when using resolvers</a></li>
+<li><a class="reference internal" href="#add-a-resolvers-package-without-creating-a-lambda-package">Add a resolvers package without creating a Lambda package</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#classes">Classes</a><ul>
@@ -180,7 +182,12 @@
 </div>
 <div class="section" id="introduction">
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
-<p>This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda. It provides the following features:</p>
+<div class="section" id="this-module-provides-a-framework-for-creating-a-backend-to-resolve-appsync-calls-in-aws-lambda">
+<h2>This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.<a class="headerlink" href="#this-module-provides-a-framework-for-creating-a-backend-to-resolve-appsync-calls-in-aws-lambda" title="Permalink to this headline">¶</a></h2>
+<p>Full documentation is available <a class="reference external" href="https://quinovas.github.io/appsync-router">HERE</a></p>
+</div>
+<div class="section" id="features">
+<h2>Features:<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Path based routing based on the Appsync parent type and field</p></li>
 <li><p>Regex based path matching</p></li>
@@ -190,6 +197,7 @@
 <li><p>Tools for generating a project skeleton and testing resolvers</p></li>
 <li><p>The ability to chain resolvers by passing the result of one as the input to the next</p></li>
 </ul>
+</div>
 <div class="section" id="how-it-works">
 <h2>How it works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">¶</a></h2>
 <p>Routes are resolved by matching a <em>path</em> to a callable (function, lambda, class, etc). Paths are represented as:</p>
@@ -232,18 +240,20 @@ decorate it, creating a Route. Here are the available types of Routes:</p>
 </div>
 <div class="section" id="chained-routes">
 <h2>Chained routes<a class="headerlink" href="#chained-routes" title="Permalink to this headline">¶</a></h2>
-<p>When <code class="docutils literal notranslate"><span class="pre">chained=True</span></code> is passed to the constructor for <code class="docutils literal notranslate"><span class="pre">appsync_router.Router</span></code> then the first matched route receives the event passed to <code class="docutils literal notranslate"><span class="pre">Router.resolve()</span></code>, with
-subsequent routes receiving the response from the previous as its argument. The last router’s response.value is placed in the <code class="docutils literal notranslate"><span class="pre">Router.resolve()</span></code> <code class="docutils literal notranslate"><span class="pre">chain_result</span></code>
+<p>When <code class="docutils literal notranslate"><span class="pre">chained=True</span></code> is passed to <code class="docutils literal notranslate"><span class="pre">Router.resolve_all()</span></code> then the first matched route receives the event passed to <code class="docutils literal notranslate"><span class="pre">Router.resolve_all()</span></code>, with
+subsequent routes receiving the response from the previous as its argument. The last router’s response.value is placed in the responses <code class="docutils literal notranslate"><span class="pre">chain_result</span></code>
 attribute.</p>
 </div>
 </div>
 <div class="section" id="resolver-framework">
 <h1>Resolver framework<a class="headerlink" href="#resolver-framework" title="Permalink to this headline">¶</a></h1>
-<p>The module installs a console script into <code class="docutils literal notranslate"><span class="pre">$PATH</span></code> that can be used to:
-- Create a resolver based app skeleton
-- Generate a Lambda function using lambda_setup_tools package (must be installed separately)
-- Test routes/Lambda function by passing an event or event file
-- Generate a new <code class="docutils literal notranslate"><span class="pre">resolver</span></code></p>
+<p>The module installs a console script into <code class="docutils literal notranslate"><span class="pre">$PATH</span></code> that can be used to:</p>
+<ul class="simple">
+<li><p>Create a resolver based app skeleton</p></li>
+<li><p>Generate a Lambda function using lambda_setup_tools package (must be installed separately)</p></li>
+<li><p>Test routes/Lambda function by passing an event or event file</p></li>
+<li><p>Generate a new <code class="docutils literal notranslate"><span class="pre">resolver</span></code></p></li>
+</ul>
 <div class="section" id="resolvers">
 <h2>resolvers<a class="headerlink" href="#resolvers" title="Permalink to this headline">¶</a></h2>
 <p>A resolver package is a module that is placed in your script’s working directory. The module consists of <code class="docutils literal notranslate"><span class="pre">resolvers</span></code>, which are your scripts that contain
@@ -317,7 +327,7 @@ which will be a local import of the resolvers directory in the main script’s d
 </pre></div>
 </div>
 <p>Test your resolver using the script:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>&gt;appsync-router execute --event &#39;{&quot;info&quot;: {&quot;parentTypeName&quot;: &quot;Query&quot;, &quot;fieldName&quot;: &quot;GetFoo&quot;}}&#39;
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>&gt;appsync-router execute-lambda --event &#39;{&quot;info&quot;: {&quot;parentTypeName&quot;: &quot;Query&quot;, &quot;fieldName&quot;: &quot;GetFoo&quot;}}&#39;
 Hello Foo!!!!!
 [
    {
@@ -359,18 +369,10 @@ Hello Foo!!!!!
 </pre></div>
 </div>
 </div>
-<div class="section" id="router-options-when-using-resolvers">
-<h2>Router options when using resolvers<a class="headerlink" href="#router-options-when-using-resolvers" title="Permalink to this headline">¶</a></h2>
-<p>It is important to note that when using resolvers your Router() object comes from the local resolvers module and so you cannot pass arguments
-to the constructor directly. To configure the Router() object use resolvers/config.json. The config file is a json document that contains any
-keyword arguments to be passed to the Router() constructor. For instance, if you wanted to create a chainable router then your resolvers/config.json
-would look like this:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-   <span class="nt">&quot;allow_multiple_routes&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-   <span class="nt">&quot;chain&quot;</span><span class="p">:</span> <span class="kc">true</span>
-<span class="p">}</span>
-</pre></div>
-</div>
+<div class="section" id="add-a-resolvers-package-without-creating-a-lambda-package">
+<h2>Add a resolvers package without creating a Lambda package<a class="headerlink" href="#add-a-resolvers-package-without-creating-a-lambda-package" title="Permalink to this headline">¶</a></h2>
+<p>Passing <code class="docutils literal notranslate"><span class="pre">--no-lambda</span></code> to <code class="docutils literal notranslate"><span class="pre">appsync-router</span> <span class="pre">make-app</span></code> will create a resolvers package in the current working directory without creating the full Lambda skeleton</p>
+<p>You can also execute a route directly by calling <code class="docutils literal notranslate"><span class="pre">appsync-router</span> <span class="pre">execute-resolver</span> <span class="pre">--event</span></code>. This passes the event directly to the route’s callable instead of the handler of a Lambda</p>
 </div>
 </div>
 <div class="section" id="classes">
