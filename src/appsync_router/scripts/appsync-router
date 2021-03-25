@@ -113,7 +113,7 @@ def add_resolver(name=None):
         print("Resolver {name} already exists.")
         exit()
 
-    copy(f"{APP_DIR}/../resolver_template.py", file_path)
+    copy(f"{APP_DIR}/resolver_template.py", file_path)
 
 
 def execute_resolver(event=None, event_file=None, no_pprint=False):
@@ -206,13 +206,16 @@ def get_execute_results(res, no_pprint=False):
     else:
         result = res
 
-    try:
-        if no_pprint:
-            print(dumps(result))
-        else:
-            print(dumps(result, indent=4))
-    except JSONDecodeError:
-        print("Lambda return value must be a dict of dict-like object")
+    if isinstance(result, str):
+        print(result)
+    else:
+        try:
+            if no_pprint:
+                print(dumps(result))
+            else:
+                print(dumps(result, indent=4))
+        except JSONDecodeError:
+            print("Lambda return value must be a dict of dict-like object")
 
 
 parser = argh.ArghParser()
