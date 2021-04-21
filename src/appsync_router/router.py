@@ -38,6 +38,56 @@ class Router:
         self.__globbed_routes = []
         #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
         self.default_route = None
+        self.__event = None
+        self.__arguments = None
+        self.__info = None
+        self.__prev = None
+        self.__source = None
+        self.__identity = None
+        self.__path = None
+        self.__field_name = None
+        self.__parent_type_name = None
+        self.__current_callable = None
+
+    @property
+    def current_callable(self):
+        return self.__current_callable
+
+    @property
+    def field_name(self):
+        return self.__field_name
+
+    @property
+    def parent_type_name(self):
+        return self.__parent_type_name
+
+    @property
+    def path(self):
+        return self.__path
+
+    @property
+    def identity(self):
+        return self.__identity
+
+    @property
+    def source(self):
+        return self.__source
+
+    @property
+    def prev(self):
+        return self.__prev
+
+    @property
+    def event(self):
+        return self.__event
+
+    @property
+    def arguments(self):
+        return self.__arguments
+
+    @property
+    def info(self):
+        return self.__info
 
     @property
     def named_routes(self):
@@ -232,7 +282,7 @@ class Router:
         return route
 
     @typechecked
-    def default(self, func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
+    def default(self, func: Callable) -> Callable:
         """
         Used as a decorator to set ``self.default_route``. If ``self.default_route`` is set.
 
@@ -247,7 +297,7 @@ class Router:
         return func
 
     @typechecked
-    def route(self, path: Union[str, List[str]]) -> Callable[[Dict], Any]:
+    def route(self, path: Union[str, List[str]], *args: Optional[List], **kwargs: Optional[Dict]) -> Callable:
         """
         Used as a decorator to register a function as an appsync_router.NamedRoute
 
@@ -267,7 +317,7 @@ class Router:
             self.validate_path(p)
 
         @typechecked
-        def inner(func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
+        def inner(func: Callable) -> Callable:
             """
             Accepts a function that accepts a Dict as its sole argument, adds the
             function to the current class object's map of routes to functions,
@@ -281,7 +331,7 @@ class Router:
         return inner
 
     @typechecked
-    def matched_route(self, regex: Union[str, Pattern], priority: Optional[int] = 0) -> Callable[[Dict], Any]:
+    def matched_route(self, regex: Union[str, Pattern], priority: Optional[int] = 0) -> Callable:
         """
         Used as a decorator to register an appsync_router.MatchedRoute
 
@@ -299,7 +349,7 @@ class Router:
             raise RouteAlreadyExistsException(f"Route using regex '{regex}' already exists")
 
         @typechecked
-        def inner(func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
+        def inner(func: Callable) -> Callable:
             """
             Accepts a function that accepts a Dict as its sole argument, adds the
             function to the current class object's map of regexes to functions,
@@ -312,7 +362,7 @@ class Router:
         return inner
 
     @typechecked
-    def globbed_route(self, glob: str, priority: Optional[int] = 0) -> Callable[[Dict], Any]:
+    def globbed_route(self, glob: str, priority: Optional[int] = 0) -> Callable:
         """
         Used as a decorator to register an appsync_router.GlobbedRoute
 
@@ -328,7 +378,7 @@ class Router:
             raise RouteAlreadyExistsException(f"Route using glob '{glob}' already exists")
 
         @typechecked
-        def inner(func: Callable[[Dict], Any]) -> Callable[[Dict], Any]:
+        def inner(func: Callable) -> Callable:
             """
             Accepts a function that accepts a Dict as its sole argument, adds the
             function to the current class object's map of globs to functions,
@@ -354,32 +404,43 @@ class Router:
             ``appsync_router.Item``
         """
 
-        field = event["info"]["parentTypeName"]
-        subfield = event["info"]["fieldName"]
-        path = f"{field}.{subfield}"
-
-        matched_routes = self.get_routes(path, include_default=False)
+        self.__parse_event(event)
+        matched_routes = self.get_routes(self.path, include_default=False)
 
         if len(matched_routes) > 1:
-            raise MultipleRoutesFoundExcepion(f"Multiple routes match path {path}")
+            raise MultipleRoutesFoundExcepion(f"Multiple routes match path {self.path}")
 
         if len(matched_routes) == 0:
             if self.default_route is not None:
                 matched_routes = [self.default_route]
             else:
-                raise NoRouteFoundException(f"No matching routes for {path}")
+                raise NoRouteFoundException(f"No matching routes for {self.path}")
 
         route = matched_routes[0]
 
+        self.__current_callable = route.callable.__name__
+
+        # Allow for functions to be called outside of the router by
+        # passing dummy args
+        empty_args = [
+            None for x in range(route.callable.__code__.co_argcount)
+        ]
+
+        # If our function accepts at least one positional arg then we
+        # will pass event as the sole arg
+        if empty_args:
+            empty_args[0] = self.event
+
         res = Item(
-            route.callable(event),
+            route.callable(*empty_args),
             route
         )
+        self.__prev = res["value"]
 
         return res
 
     @typechecked
-    def resolve_all(self, event: Any, chain=False) -> Response:
+    def resolve_all(self, event: Any) -> Response:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
@@ -393,23 +454,34 @@ class Router:
             ``appsync_router.Response``
         """
 
-        field = event["info"]["parentTypeName"]
-        subfield = event["info"]["fieldName"]
-        path = f"{field}.{subfield}"
-
-        routes_to_call = self.get_routes(path, include_default=False)
+        self.__parse_event(event)
+        routes_to_call = self.get_routes(self.path, include_default=False)
 
         if len(routes_to_call) == 0:
             if self.default_route is not None:
                 routes_to_call = [self.default_route]
             else:
-                raise NoRouteFoundException(f"No matching routes for {path}")
+                raise NoRouteFoundException(f"No matching routes for {self.path}")
+        self.__prev = []
+        results = Response(self.path)
 
-        results = Response(path, chained=self.chain)
         for route in routes_to_call:
-            result = route.callable(event)
-            if self.chain is True:
-                event = result
+            self.__current_callable = route.callable.__name__
+
+            # Allow for functions to be called outside of the router by
+            # passing dummy args
+            empty_args = [
+                None for x in range(route.callable.__code__.co_argcount)
+            ]
+
+            # If our function accepts at least one positional arg then we
+            # will pass event as the sole arg
+            if empty_args:
+                empty_args[0] = self.event
+
+            result = route.callable(*empty_args)
+            self.__prev.append(result)
+
             item = Item(result, route)
             results.add_item(item)
 
@@ -465,3 +537,13 @@ class Router:
             raise RouteAlreadyExistsException(f"Route for {path} already exists")
 
         return path
+
+    def __parse_event(self, event):
+        self.__event = event
+        self.__arguments = event.get("arguments")
+        self.__info = event.get("info")
+        self.__source = event.get("source")
+        self.__identity = event.get("identity")
+        self.__parent_type_name = event["info"]["parentTypeName"]
+        self.__field_name = event["info"]["fieldName"]
+        self.__path = f"{self.parent_type_name}.{self.field_name}"
