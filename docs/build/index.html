@@ -91,7 +91,10 @@
 <li><a class="reference internal" href="#features">Features:</a></li>
 <li><a class="reference internal" href="#how-it-works">How it works</a></li>
 <li><a class="reference internal" href="#creating-routes">Creating routes</a></li>
-<li><a class="reference internal" href="#chained-routes">Chained routes</a></li>
+<li><a class="reference internal" href="#function-signatures">Function signatures</a></li>
+<li><a class="reference internal" href="#multiple-route-matching">Multiple Route matching</a></li>
+<li><a class="reference internal" href="#the-event-property">The event property</a></li>
+<li><a class="reference internal" href="#stashing-data">Stashing data</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#resolver-framework">Resolver framework</a><ul>
@@ -193,7 +196,7 @@
 <li><p>Regex based path matching</p></li>
 <li><p>Path matching using Unix-like glob patters</p></li>
 <li><p>Resolving by “First match wins” or returning the results of multiple matching routes</p></li>
-<li><p>Any callable that accepts an AWS Lambda <em>event</em> dict can be used to handle a route</p></li>
+<li><p>Any callable can be used to handle a route</p></li>
 <li><p>Tools for generating a project skeleton and testing resolvers</p></li>
 <li><p>The ability to chain resolvers by passing the result of one as the input to the next</p></li>
 </ul>
@@ -217,32 +220,53 @@ decorate it, creating a Route. Here are the available types of Routes:</p>
 <h2>Creating routes<a class="headerlink" href="#creating-routes" title="Permalink to this headline">¶</a></h2>
 <p>There are two ways to build a Router. The easiest is to use decorators. Here is an example of creating a NamedRoute using a decorator.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">appsync_router</span> <span class="kn">import</span> <span class="n">Route</span>
-<span class="n">router</span> <span class="o">=</span> <span class="n">Route</span><span class="p">()</span>
+<span class="n">router</span> <span class="o">=</span> <span class="n">Router</span><span class="p">()</span>
 
 <span class="nd">@router</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;Query.GetFoo&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">get_foo</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_foo</span><span class="p">():</span>
    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello Foo!!!)</span>
    <span class="k">return</span> <span class="n">event</span>
 </pre></div>
 </div>
 <p>The second way is to manually add a route.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">appsync_router</span> <span class="kn">import</span> <span class="n">Route</span><span class="p">,</span> <span class="n">NamedRoute</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">appsync_router</span> <span class="kn">import</span> <span class="n">Router</span><span class="p">,</span> <span class="n">NamedRoute</span>
 
-<span class="k">def</span> <span class="nf">get_foo</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_foo</span><span class="p">(</span><span class="n">foo</span><span class="p">,</span> <span class="n">bar</span><span class="p">,</span> <span class="n">baz</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello Foo!!!)</span>
-   <span class="k">return</span> <span class="n">event</span>
+   <span class="k">return</span> <span class="n">router</span><span class="o">.</span><span class="n">event</span>
 
-<span class="n">router</span> <span class="o">=</span> <span class="n">Route</span><span class="p">()</span>
+<span class="n">router</span> <span class="o">=</span> <span class="n">Router</span><span class="p">()</span>
 <span class="n">my_route</span> <span class="o">=</span> <span class="n">NamedRoute</span><span class="p">(</span><span class="s2">&quot;Query.GetFoo&quot;</span><span class="p">,</span> <span class="n">get_foo</span><span class="p">)</span>
 <span class="n">router</span><span class="o">.</span><span class="n">add_route</span><span class="p">(</span><span class="n">my_route</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="section" id="chained-routes">
-<h2>Chained routes<a class="headerlink" href="#chained-routes" title="Permalink to this headline">¶</a></h2>
-<p>When <code class="docutils literal notranslate"><span class="pre">chained=True</span></code> is passed to <code class="docutils literal notranslate"><span class="pre">Router.resolve_all()</span></code> then the first matched route receives the event passed to <code class="docutils literal notranslate"><span class="pre">Router.resolve_all()</span></code>, with
-subsequent routes receiving the response from the previous as its argument. The last router’s response.value is placed in the responses <code class="docutils literal notranslate"><span class="pre">chain_result</span></code>
-attribute.</p>
+<div class="section" id="function-signatures">
+<h2>Function signatures<a class="headerlink" href="#function-signatures" title="Permalink to this headline">¶</a></h2>
+<p>You may have noticed that when using the decorator our function signature took no arguments. This is because we are accessing the event via <code class="docutils literal notranslate"><span class="pre">router.event</span></code>.
+You can define your functions to take any number of arguments as long as those arguments allow for their value to be <code class="docutils literal notranslate"><span class="pre">None</span></code>. When a route is handled by
+<code class="docutils literal notranslate"><span class="pre">resolve()</span></code> or <code class="docutils literal notranslate"><span class="pre">resolve_all()</span></code> then when the function is called the arguments will be handled as follows:</p>
+<ul class="simple">
+<li><p>All positional arguments will be passed <code class="docutils literal notranslate"><span class="pre">None</span></code> as their value the router</p></li>
+<li><p>No keyword args will be passed</p></li>
+</ul>
+<p>This allows for reusing functions so you can register them as a route or call them directly from somewhere else using whatever signature you prefer.</p>
+</div>
+<div class="section" id="multiple-route-matching">
+<h2>Multiple Route matching<a class="headerlink" href="#multiple-route-matching" title="Permalink to this headline">¶</a></h2>
+<p>Calling <code class="docutils literal notranslate"><span class="pre">Router.resolve_all()</span></code> will call every route that matches the event’s path. Results from each function that is called is appended to
+<code class="docutils literal notranslate"><span class="pre">Router().prev</span></code> so you can access the results from any route that is called in subsequent routes.</p>
+</div>
+<div class="section" id="the-event-property">
+<h2>The event property<a class="headerlink" href="#the-event-property" title="Permalink to this headline">¶</a></h2>
+<p>The event is passed to the Router() object by a call to either <code class="docutils literal notranslate"><span class="pre">Router().init(event)</span></code> or by passing the event as an argument to <code class="docutils literal notranslate"><span class="pre">Router().resolve()</span></code>
+or <code class="docutils literal notranslate"><span class="pre">Router().resolve_all()</span></code>. The Router().event is immutable once set, which guarantees that what was originally passed stays intact. You can use the
+<code class="docutils literal notranslate"><span class="pre">Router().stash</span></code> property to pass arbitrary data between function calls if necessary. Once <code class="docutils literal notranslate"><span class="pre">Router().event</span></code> is set the event is accessible from anywhere
+that has access to the <code class="docutils literal notranslate"><span class="pre">Router()</span></code> object.</p>
+</div>
+<div class="section" id="stashing-data">
+<h2>Stashing data<a class="headerlink" href="#stashing-data" title="Permalink to this headline">¶</a></h2>
+<p>You can store arbitrary data as in <code class="docutils literal notranslate"><span class="pre">Router().stash</span></code>. The stash can be treated as a <code class="docutils literal notranslate"><span class="pre">dict</span></code> and can be accessed anywhere that the <code class="docutils literal notranslate"><span class="pre">Router()</span></code> object is accessible.</p>
 </div>
 </div>
 <div class="section" id="resolver-framework">
@@ -271,7 +295,7 @@ which will be a local import of the resolvers directory in the main script’s d
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">appsync_router.resolver</span> <span class="kn">import</span> <span class="n">router</span>
 
 <span class="nd">@router</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;Query.GetFoo&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">get_foo</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_foo</span><span class="p">():</span>
    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here is Foo!!!!!&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -321,9 +345,9 @@ which will be a local import of the resolvers directory in the main script’s d
 
 
 <span class="nd">@router</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;Query.GetFoo&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">get_foo</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_foo</span><span class="p">():</span>
    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Called GetFoo!!!!!&quot;</span><span class="p">)</span>
-   <span class="k">return</span> <span class="n">event</span>
+   <span class="k">return</span> <span class="n">router</span><span class="o">.</span><span class="n">event</span>
 </pre></div>
 </div>
 <p>Test your resolver using the script:</p>

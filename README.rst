@@ -1,5 +1,8 @@
+Introduction
+============
+
 This module provides a framework for creating a backend to resolve Appsync calls in AWS Lambda.
-===============================================================================================
+-----------------------------------------------------------------------------------------------
 
 Full documentation is available `HERE <https://quinovas.github.io/appsync-router>`_
 
@@ -10,7 +13,7 @@ Features:
 - Regex based path matching
 - Path matching using Unix-like glob patters
 - Resolving by "First match wins" or returning the results of multiple matching routes
-- Any callable that accepts an AWS Lambda *event* dict can be used to handle a route
+- Any callable can be used to handle a route
 - Tools for generating a project skeleton and testing resolvers
 - The ability to chain resolvers by passing the result of one as the input to the next
 
@@ -41,10 +44,10 @@ There are two ways to build a Router. The easiest is to use decorators. Here is 
 .. code-block:: python
 
    from appsync_router import Route
-   router = Route()
+   router = Router()
 
    @router.route(path="Query.GetFoo")
-   def get_foo(event):
+   def get_foo():
       print("Hello Foo!!!)
       return event
 
@@ -53,28 +56,53 @@ The second way is to manually add a route.
 
 .. code-block:: python
 
-   from appsync_router import Route, NamedRoute
+   from appsync_router import Router, NamedRoute
 
-   def get_foo(event):
+   def get_foo(foo, bar, baz=True):
       print("Hello Foo!!!)
-      return event
+      return router.event
 
-   router = Route()
+   router = Router()
    my_route = NamedRoute("Query.GetFoo", get_foo)
    router.add_route(my_route)
 
 
-Chained routes
---------------
-When ``chained=True`` is passed to the constructor for ``appsync_router.Router`` then the first matched route receives the event passed to ``Router.resolve()``, with
-subsequent routes receiving the response from the previous as its argument. The last router's response.value is placed in the ``Router.resolve()`` ``chain_result``
-attribute.
+Function signatures
+-------------------
+You may have noticed that when using the decorator our function signature took no arguments. This is because we are accessing the event via ``router.event``.
+You can define your functions to take any number of arguments as long as those arguments allow for their value to be ``None``. When a route is handled by
+``resolve()`` or ``resolve_all()`` then when the function is called the arguments will be handled as follows:
+
+- All positional arguments will be passed ``None`` as their value the router
+- No keyword args will be passed
+
+This allows for reusing functions so you can register them as a route or call them directly from somewhere else using whatever signature you prefer.
+
+
+Multiple Route matching
+-----------------------
+Calling ``Router.resolve_all()`` will call every route that matches the event's path. Results from each function that is called is appended to
+``Router().prev`` so you can access the results from any route that is called in subsequent routes.
+
+
+The event property
+------------------
+The event is passed to the Router() object by a call to either ``Router().init(event)`` or by passing the event as an argument to ``Router().resolve()``
+or ``Router().resolve_all()``. The Router().event is immutable once set, which guarantees that what was originally passed stays intact. You can use the
+``Router().stash`` property to pass arbitrary data between function calls if necessary. Once ``Router().event`` is set the event is accessible from anywhere
+that has access to the ``Router()`` object.
+
+
+Stashing data
+-------------
+You can store arbitrary data as in ``Router().stash``. The stash can be treated as a ``dict`` and can be accessed anywhere that the ``Router()`` object is accessible.
 
 
 Resolver framework
 ==================
 
 The module installs a console script into ``$PATH`` that can be used to:
+
 - Create a resolver based app skeleton
 - Generate a Lambda function using lambda_setup_tools package (must be installed separately)
 - Test routes/Lambda function by passing an event or event file
@@ -103,7 +131,7 @@ Example of first_resolver.py:
    from appsync_router.resolver import router
 
    @router.route("Query.GetFoo")
-   def get_foo(event):
+   def get_foo():
       print("Here is Foo!!!!!")
 
 
@@ -165,16 +193,16 @@ Edit resolvers/foo.py to contain the following:
 
 
    @router.route(path="Query.GetFoo")
-   def get_foo(event):
+   def get_foo():
       print("Called GetFoo!!!!!")
-      return event
+      return router.event
 
 
 Test your resolver using the script:
 
 ::
 
-   >appsync-router execute --event '{"info": {"parentTypeName": "Query", "fieldName": "GetFoo"}}'
+   >appsync-router execute-lambda --event '{"info": {"parentTypeName": "Query", "fieldName": "GetFoo"}}'
    Hello Foo!!!!!
    [
       {
@@ -221,17 +249,10 @@ And execute with:
    [{'info': {'parentTypeName': 'Query', 'fieldName': 'GetFoo'}}]
 
 
-Router options when using resolvers
------------------------------------
-It is important to note that when using resolvers your Router() object comes from the local resolvers module and so you cannot pass arguments
-to the constructor directly. To configure the Router() object use resolvers/config.json. The config file is a json document that contains any
-keyword arguments to be passed to the Router() constructor. For instance, if you wanted to create a chainable router then your resolvers/config.json
-would look like this:
+Add a resolvers package without creating a Lambda package
+---------------------------------------------------------
 
-.. code-block:: json
+Passing ``--no-lambda`` to ``appsync-router make-app`` will create a resolvers package in the current working directory without creating the full Lambda skeleton
 
-   {
-      "allow_multiple_routes": true,
-      "chain": true
-   }
+You can also execute a route directly by calling ``appsync-router execute-resolver --event``. This passes the event directly to the route's callable instead of the handler of a Lambda
 

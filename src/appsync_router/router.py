@@ -472,11 +472,6 @@ class Router:
             None for x in range(route.callable.__code__.co_argcount)
         ]
 
-        # If our function accepts at least one positional arg then we
-        # will pass event as the first arg.
-        if empty_args:
-            empty_args[0] = self.__event
-
         res = Item(
             route.callable(*empty_args),
             route
@@ -523,11 +518,6 @@ class Router:
             empty_args = [
                 None for x in range(route.callable.__code__.co_argcount)
             ]
-
-            # If our function accepts at least one positional arg then we
-            # will pass event as the sole arg
-            if empty_args:
-                empty_args[0] = self.__event
 
             result = route.callable(*empty_args)
             self.__prev.append(result)
