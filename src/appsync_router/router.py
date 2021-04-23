@@ -17,7 +17,9 @@ from .types import (
     GlobbedRoute,
     DefaultRoute,
     Item,
-    Response
+    Response,
+    Stash,
+    Event
 )
 from .exceptions import (
     MultipleRoutesFoundExcepion,
@@ -38,104 +40,136 @@ class Router:
         self.__globbed_routes = []
         #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
         self.default_route = None
-        self.__event = None
-        self.__arguments = None
-        self.__info = None
+        self.__event = Event()
+        self.__arguments = {}
+        self.__info = {}
         self.__prev = None
-        self.__source = None
-        self.__identity = None
+        self.__source = {}
+        self.__identity = {}
         self.__path = None
         self.__field_name = None
         self.__parent_type_name = None
         self.__current_callable = None
+        #: Can be used to stash data between routes as they are called
+        self.stash = Stash()
 
     @property
-    def current_callable(self):
-        return self.__current_callable
-
-    @property
-    def field_name(self):
-        return self.__field_name
-
-    @property
-    def parent_type_name(self):
-        return self.__parent_type_name
-
-    @property
-    def path(self):
-        return self.__path
-
-    @property
-    def identity(self):
-        return self.__identity
-
-    @property
-    def source(self):
-        return self.__source
-
-    @property
-    def prev(self):
-        return self.__prev
-
-    @property
-    def event(self):
+    def event(self) -> Union[Event, None]:
+        """
+        Returns the event passed to resolve() or resolve_all()
+        """
         return self.__event
 
     @property
-    def arguments(self):
+    def current_callable(self) -> Union[str, None]:
+        """
+        The name of the current callable being called in the route.
+        """
+        return self.__current_callable
+
+    @property
+    def field_name(self) -> Union[str, None]:
+        """
+        Same as event["info"]["fieldName"]
+        """
+        return self.__field_name
+
+    @property
+    def parent_type_name(self) -> Union[str, None]:
+        """
+        Same as event["info"]["parentTypeName"]
+        """
+        return self.__parent_type_name
+
+    @property
+    def path(self) -> Union[str, None]:
+        """
+            The current matched path being called
+        """
+        return self.__path
+
+    @property
+    def identity(self) -> dict:
+        """
+        Same as event["identity"]
+        """
+        return self.__identity
+
+    @property
+    def source(self) -> dict:
+        """
+        Same as event["source"]
+        """
+        return self.__source
+
+    @property
+    def prev(self) -> Union[None, dict, list]:
+        """
+        When resolve() is called this is set to the value returned by the callable.
+        For resolve_all() it is a list of returned values in the order they were returned.
+        """
+        return self.__prev
+
+    @property
+    def arguments(self) -> dict:
+        """
+        Same as event["arguments"]
+        """
         return self.__arguments
 
     @property
     def info(self):
+        """
+        Same as event["info"]
+        """
         return self.__info
 
     @property
-    def named_routes(self):
+    def named_routes(self) -> List[NamedRoute]:
         """
         Returns a list containing all routes of type appsync_router.NamedRoute
         that are currently registered.
-
-        :returns:
-            ``list``
+            :returns:
+                ``list``
         """
         return self.__named_routes
 
     @property
-    def matched_routes(self):
+    def matched_routes(self) -> List[MatchedRoute]:
         """
         Returns a list containing all routes of type appsync_router.MatchedRoute
         that are currently registered.
-
-        :returns:
-            ``list``
+            :returns:
+                ``list``
         """
         return self._sorted_routes(self.__matched_routes)
 
     @property
-    def globbed_routes(self):
+    def globbed_routes(self) -> List[GlobbedRoute]:
         """
         Returns a list containing all routes of type appsync_router.GlobbedRoute
         that are currently registered.
-
-        :returns:
-            ``list``
+            :returns:
+                ``list``
         """
         return self._sorted_routes(self.__globbed_routes)
 
     @property
-    def all_routes(self):
+    def all_routes(self) -> List[Route]:
         """
         Returns a list containing all registered routes
-
-        :returns:
-            ``list``
+            :returns:
+                ``list``
         """
 
-        res = self._sorted_routes([
-            *self.named_routes,
-            *self.matched_routes,
-            *self.globbed_routes
-        ], sort_by_paths=True)
+        res = self._sorted_routes(
+            [
+                *self.named_routes,
+                *self.matched_routes,
+                *self.globbed_routes
+            ],
+            sort_by_paths=True
+        )
 
         if self.default_route:
             res.append(self.default_route)
@@ -143,7 +177,7 @@ class Router:
         return res
 
     @property
-    def registered_paths(self):
+    def registered_paths(self) -> List[str]:
         """
         Returns a list containing all registered paths
 
@@ -158,7 +192,7 @@ class Router:
         ]
 
     @staticmethod
-    def _sorted_routes(routes, sort_by_paths=False):
+    def _sorted_routes(routes, sort_by_paths=False) -> list:
         def type_sorter(route_type):
             types = {
                 "named_route": 1,
@@ -181,6 +215,12 @@ class Router:
             )
 
         return sorted(routes, key=sorter)
+
+    def init(self, data: dict):
+        if self.__event:
+            raise ValueError("Router().event has already been initialized")
+        else:
+            self.__parse_event(data)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
         """
@@ -391,7 +431,7 @@ class Router:
         return inner
 
     @typechecked
-    def resolve(self, event: Any) -> Item:
+    def resolve(self, event: Optional[dict] = None) -> Item:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
@@ -403,8 +443,12 @@ class Router:
         :returns:
             ``appsync_router.Item``
         """
+        if event:
+            self.__parse_event(event)
 
-        self.__parse_event(event)
+        if not self.__event:
+            raise ValueError("You must either call Router().init(event) or pass event as argument to resolve()")
+
         matched_routes = self.get_routes(self.path, include_default=False)
 
         if len(matched_routes) > 1:
@@ -420,16 +464,18 @@ class Router:
 
         self.__current_callable = route.callable.__name__
 
-        # Allow for functions to be called outside of the router by
-        # passing dummy args
+        # This allows defining a function that accepts arguments the
+        # router doesn't care about so it can also be used outside of the router
+        # If the args are type checked then the function will have to allow for a
+        # dict to be accepted as the first arg and every other arg must allow for None
         empty_args = [
             None for x in range(route.callable.__code__.co_argcount)
         ]
 
         # If our function accepts at least one positional arg then we
-        # will pass event as the sole arg
+        # will pass event as the first arg.
         if empty_args:
-            empty_args[0] = self.event
+            empty_args[0] = self.__event
 
         res = Item(
             route.callable(*empty_args),
@@ -440,7 +486,7 @@ class Router:
         return res
 
     @typechecked
-    def resolve_all(self, event: Any) -> Response:
+    def resolve_all(self, event: Optional[dict] = None) -> Response:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
@@ -453,8 +499,12 @@ class Router:
         :returns:
             ``appsync_router.Response``
         """
+        if event:
+            self.__parse_event(event)
 
-        self.__parse_event(event)
+        if not self.__event:
+            raise ValueError("You must either call Router().init(event) or pass event as argument to resolve_all()")
+
         routes_to_call = self.get_routes(self.path, include_default=False)
 
         if len(routes_to_call) == 0:
@@ -477,7 +527,7 @@ class Router:
             # If our function accepts at least one positional arg then we
             # will pass event as the sole arg
             if empty_args:
-                empty_args[0] = self.event
+                empty_args[0] = self.__event
 
             result = route.callable(*empty_args)
             self.__prev.append(result)
@@ -487,23 +537,24 @@ class Router:
 
         return results
 
-    def __find_matched_route(self, path, find_all=False):
+    def __find_matched_route(self, path, find_all=False) -> Union[MatchedRoute, List[MatchedRoute], None]:
         if find_all:
             res = []
         else:
             res = None
 
-        for route in self.matched_routes:
-            if match(route.regex, path):
-                if find_all:
-                    res.append(route)
-                else:
-                    res = route
-                    break
+        if path is not None:
+            for route in self.matched_routes:
+                if match(route.regex, path):
+                    if find_all:
+                        res.append(route)
+                    else:
+                        res = route
+                        break
 
         return res
 
-    def __find_globbed_route(self, path, find_all=False):
+    def __find_globbed_route(self, path, find_all=False) -> Union[GlobbedRoute, List[GlobbedRoute], None]:
         if find_all:
             res = []
         else:
@@ -538,12 +589,24 @@ class Router:
 
         return path
 
-    def __parse_event(self, event):
-        self.__event = event
-        self.__arguments = event.get("arguments")
-        self.__info = event.get("info")
-        self.__source = event.get("source")
-        self.__identity = event.get("identity")
+    def __parse_event(self, event: dict):
+        if self.__event:
+            raise ValueError("Router has already been initialized with an event")
+
+        if not isinstance(event, dict):
+            raise TypeError("event must be a dict")
+
+        if not isinstance(event.get("info"), dict):
+            raise TypeError("Event must contain an info key that contains a dict")
+
+        if not (event["info"].get("parentTypeName") and event["info"].get("fieldName")):
+            raise ValueError('event["info"] must contain fieldName and parentTypeName')
+
+        self.__event = Event(event)
+        self.__arguments = event.get("arguments") or {}
+        self.__info = event["info"] or {}
+        self.__source = event.get("source") or {}
+        self.__identity = event.get("identity") or {}
         self.__parent_type_name = event["info"]["parentTypeName"]
         self.__field_name = event["info"]["fieldName"]
         self.__path = f"{self.parent_type_name}.{self.field_name}"

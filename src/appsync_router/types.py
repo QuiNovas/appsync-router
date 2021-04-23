@@ -206,3 +206,77 @@ class Response:
     def __str__(self):
         '''returns simple dict representation of the mapping'''
         return str(self.__dict__)
+
+
+@typechecked
+class Stash(dict):
+    def __init__(self, event: Optional[dict] = {}):
+        for k, v in event.items():
+            self[k] = v
+
+    def __getitem__(self, key):
+        return dict.__getitem__(self, key)
+
+    def __setitem__(self, key, value):
+        dict.__setitem__(self, key, value)
+
+    def __delitem__(self, key):
+        dict.__delitem__(self, key)
+
+    def __iter__(self):
+        return dict.__iter__(self)
+
+    def __len__(self):
+        return dict.__len__(self)
+
+    def __contains__(self, x):
+        return dict.__contains__(self, x)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __delattr__(self, key):
+        try:
+            del self[key]
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __getattribute__(self, name) -> Any:
+        return self[name]
+
+
+@typechecked
+class Event(dict):
+    def __init__(self, event: Optional[dict] = {}):
+        for k, v in event.items():
+            self[k] = v
+
+    def __getitem__(self, key):
+        return dict.__getitem__(self, key)
+
+    def __setitem__(self, key, value):
+        dict.__setitem__(self, key, value)
+
+    def __delitem__(self, key):
+        dict.__delitem__(self, key)
+
+    def __iter__(self):
+        return dict.__iter__(self)
+
+    def __len__(self):
+        return dict.__len__(self)
+
+    def __contains__(self, x):
+        return dict.__contains__(self, x)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __delattr__(self, key):
+        try:
+            del self[key]
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __getattribute__(self, name: str) -> Any:
+        return self[name]
