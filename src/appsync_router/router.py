@@ -128,30 +128,30 @@ class Router:
     def named_routes(self) -> List[NamedRoute]:
         """
         Returns a list containing all routes of type appsync_router.NamedRoute
-        that are currently registered.
             :returns:
                 ``list``
         """
+
         return self.__named_routes
 
     @property
     def matched_routes(self) -> List[MatchedRoute]:
         """
         Returns a list containing all routes of type appsync_router.MatchedRoute
-        that are currently registered.
             :returns:
                 ``list``
         """
+
         return self._sorted_routes(self.__matched_routes)
 
     @property
     def globbed_routes(self) -> List[GlobbedRoute]:
         """
         Returns a list containing all routes of type appsync_router.GlobbedRoute
-        that are currently registered.
             :returns:
                 ``list``
         """
+
         return self._sorted_routes(self.__globbed_routes)
 
     @property
