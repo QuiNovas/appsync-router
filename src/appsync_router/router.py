@@ -217,10 +217,7 @@ class Router:
         return sorted(routes, key=sorter)
 
     def init(self, data: dict):
-        if self.__event:
-            raise ValueError("Router().event has already been initialized")
-        else:
-            self.__parse_event(data)
+        self.__parse_event(data)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
         """
@@ -580,9 +577,6 @@ class Router:
         return path
 
     def __parse_event(self, event: dict):
-        if self.__event:
-            raise ValueError("Router has already been initialized with an event")
-
         if not isinstance(event, dict):
             raise TypeError("event must be a dict")
 
