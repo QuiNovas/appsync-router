@@ -245,10 +245,12 @@ class Stash(dict):
             raise AttributeError(k)
 
     def __getattribute__(self, name):
-        try:
+        if name in self:
             return self[name]
-        except KeyError:
+        elif getattr(dict, name, None) and callable(dict.__getattribute__(self, name)):
             return dict.__getattribute__(self, name)
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
 
 @typechecked
@@ -288,7 +290,9 @@ class Event(dict):
             raise AttributeError(k)
 
     def __getattribute__(self, name):
-        try:
+        if name in self:
             return self[name]
-        except KeyError:
+        elif getattr(dict, name, None) and callable(dict.__getattribute__(self, name)):
             return dict.__getattribute__(self, name)
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
