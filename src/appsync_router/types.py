@@ -210,14 +210,17 @@ class Response:
 
 @typechecked
 class Stash(dict):
-    def __init__(self, event: Optional[dict] = {}):
-        for k, v in event.items():
+    def __init__(self, stash: Optional[dict] = {}):
+        for k, v in stash.items():
             self[k] = v
 
     def __getitem__(self, key):
         return dict.__getitem__(self, key)
 
     def __setitem__(self, key, value):
+        if isinstance(value, dict):
+            value = Stash(value)
+
         dict.__setitem__(self, key, value)
 
     def __delitem__(self, key):
@@ -241,13 +244,16 @@ class Stash(dict):
         except KeyError as k:
             raise AttributeError(k)
 
-    def __getattribute__(self, name) -> Any:
-        return self[name]
+    def __getattribute__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            return dict.__getattribute__(self, name)
 
 
 @typechecked
 class Event(dict):
-    def __init__(self, event: Optional[dict] = {}):
+    def __init__(self, event: dict = {}):
         for k, v in event.items():
             self[k] = v
 
@@ -255,6 +261,9 @@ class Event(dict):
         return dict.__getitem__(self, key)
 
     def __setitem__(self, key, value):
+        if isinstance(value, dict):
+            value = Stash(value)
+
         dict.__setitem__(self, key, value)
 
     def __delitem__(self, key):
@@ -278,5 +287,8 @@ class Event(dict):
         except KeyError as k:
             raise AttributeError(k)
 
-    def __getattribute__(self, name: str) -> Any:
-        return self[name]
+    def __getattribute__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            return dict.__getattribute__(self, name)
