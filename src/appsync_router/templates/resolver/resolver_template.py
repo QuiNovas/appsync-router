@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.8
-from appsync_router.resolver import router
+from resolvers import router
 
 
 @router.route(path="Query.GetFoo")
