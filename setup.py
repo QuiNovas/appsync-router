@@ -15,7 +15,7 @@ setup(
     long_description_content_type='text/x-rst',
     packages=['appsync_router'],
     package_dir={'appsync_router': 'src/appsync_router'},
-    install_requires=["typeguard", "appsync-tools"],
+    install_requires=["typeguard", "appsync-tools", "setuptools"],
     scripts=["src/appsync_router/scripts/appsync-router"],
     python_requires=">=3.8",
     include_package_data=True,
