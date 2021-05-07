@@ -283,6 +283,8 @@ class Router:
             if isinstance(route, GlobbedRoute) and route.glob in self.registered_paths:
                 raise RouteAlreadyExistsException(f"Route using glob {route.glob} already exists")
 
+            setattr(route, "appsync_route", True)
+
             route_containers = {
                 "named_route": self.__named_routes,
                 "matched_route": self.__matched_routes,
@@ -329,6 +331,8 @@ class Router:
         if self.default_route is not None:
             raise RouteAlreadyExistsException("A default route has already been registered")
 
+        setattr(func, "appsync_route", True)
+
         self.default_route = DefaultRoute(func)
 
         return func
@@ -360,6 +364,9 @@ class Router:
             function to the current class object's map of routes to functions,
             and returns the function
             """
+
+            setattr(func, "appsync_route", True)
+
             for path in paths:
                 self.__named_routes.append(NamedRoute(path, func))
 
@@ -392,6 +399,9 @@ class Router:
             function to the current class object's map of regexes to functions,
             and returns the function
             """
+
+            setattr(func, "appsync_route", True)
+
             self.__matched_routes.append(MatchedRoute(regex, func, priority=priority))
 
             return func
@@ -421,6 +431,9 @@ class Router:
             function to the current class object's map of globs to functions,
             and returns the function
             """
+
+            setattr(func, "appsync_route", True)
+
             self.__globbed_routes.append(GlobbedRoute(glob, func, priority=priority))
 
             return func
