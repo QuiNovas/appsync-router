@@ -18,7 +18,7 @@ lambda_license = "Proprietary"
 lambda_author = "{LAMBDA_AUTHOR}"
 lambda_author_email = "{AUTHOR_EMAIL}"
 
-lambda_install_requires = []
+lambda_install_requires = ["setuptools"]
 lambda_python_version = "{LAMBDA_PYTHON_VERSION}"
 
 setup(
