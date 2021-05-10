@@ -112,8 +112,8 @@ The module installs a console script into ``$PATH`` that can be used to:
 resolvers
 ---------
 A resolver package is a module that is placed in your script's working directory. The module consists of ``resolvers``, which are your scripts that contain
-decorated functions to create routes and an import of ``appsync_router.resolver.router``. When using the resolver framework your main script imports ``resolvers``,
-which will be a local import of the resolvers directory in the main script's directory. Here is an example of the directory structure:
+decorated functions to create routes and a ``Router()`` object (named "router") to be imported by your Lambda function. When using the resolver framework your main script
+imports ``resolvers.router``, which will be a local import of the resolvers directory in the main script's directory. Here is an example of the directory structure:
 ::
 
    my_lambda.py
@@ -128,7 +128,7 @@ Example of first_resolver.py:
 
 .. code-block:: python
 
-   from appsync_router.resolver import router
+   from resolvers import router
 
    @router.route("Query.GetFoo")
    def get_foo():
@@ -153,7 +153,7 @@ Your lambda would then import ``resolvers.router``. Here is an example lambda th
 
 Here is what happens in the example:
 
-- first_resolver.py imports the router object from __init__.py using ``from appsync_router.resolver import router``
+- first_resolver.py imports the router object from __init__.py using ``from resolvers import router``
 - All routes in first_resolver.py are added to the ``route`` object
 - If there are any other files in ``resolvers`` their routes are also added to a new ``route`` object
 - my_lambda.py imports the ``resolvers.route`` object, which contains a new route object containing all routes from resolvers merged together
@@ -182,14 +182,14 @@ Now add a resolver:
    >appsync-router add-resolver --resolver-name foo
    >rm -f resolvers/example.py #remove the example
    >ls resolvers
-   __init__.py  config.json  foo.py
+   __init__.py foo.py
 
 
 Edit resolvers/foo.py to contain the following:
 
 .. code-block:: python
 
-   from appsync_router.resolver import router
+   from resolvers import router
 
 
    @router.route(path="Query.GetFoo")

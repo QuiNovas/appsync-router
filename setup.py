@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='appsync-router',
-    version='2.0.1',
+    version='3.0.0',
     description='A framework for building, testing, and deploying  an Appsync backend using AWS Lambda',
     author='Mathew Moon',
     author_email='mmoon@quinovas.com',
@@ -15,7 +15,7 @@ setup(
     long_description_content_type='text/x-rst',
     packages=['appsync_router'],
     package_dir={'appsync_router': 'src/appsync_router'},
-    install_requires=["typeguard", "appsync-tools"],
+    install_requires=["typeguard", "appsync-tools", "setuptools"],
     scripts=["src/appsync_router/scripts/appsync-router"],
     python_requires=">=3.8",
     include_package_data=True,
