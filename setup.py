@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='appsync-router',
-    version='3.0.0',
+    version='3.1.0',
     description='A framework for building, testing, and deploying  an Appsync backend using AWS Lambda',
     author='Mathew Moon',
     author_email='mmoon@quinovas.com',
