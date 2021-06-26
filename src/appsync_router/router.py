@@ -32,9 +32,20 @@ class Router:
     """
     Creates routes from Appsync paths, expressed as *<event["info"]["parentTypeName"]>.<event["info"]["fieldName"]>*,
     to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
+
+    :Keyword Arguments:
+        * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
+        Does not modify the event being passed to the route's callable but can be used, for instance, as an authorizor. Must
+        accept a dictionary as the first and only argument. Setting the `pre` argument directly on a route in its decorator
+        overrides this one.
+        * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
+        the only argument and whose result will replace the route's return value. This can be used to run additional operations
+        on the response, such as filtering data, before it is returned to the router. Setting `post` on directly on any route's
+        decorator will override this one.
+
     """
 
-    def __init__(self):
+    def __init__(self, pre: Callable = None, post: Callable = None):
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
@@ -50,6 +61,8 @@ class Router:
         self.__field_name = None
         self.__parent_type_name = None
         self.__current_callable = None
+        self.pre = pre
+        self.post = post
         #: Can be used to stash data between routes as they are called
         self.stash = Stash()
 
@@ -321,9 +334,23 @@ class Router:
         return route
 
     @typechecked
-    def default(self, func: Callable) -> Callable:
+    def default(
+        self,
+        func: Callable,
+        pre: Callable = None,
+        post: Callable = None
+    ) -> Callable:
         """
         Used as a decorator to set ``self.default_route``. If ``self.default_route`` is set.
+
+        :params:
+            * *func:* (``Callable``): Function to handle default route
+
+        :Keyword Arguments:
+            * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
+            Does not modify the event being passed to the route's callable
+            * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
+            the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -333,17 +360,32 @@ class Router:
 
         setattr(func, "appsync_route", True)
 
+        if pre:
+            setattr(func, "pre", pre)
+
+        if post:
+            setattr(func, "post", post)
+
         self.default_route = DefaultRoute(func)
 
         return func
 
     @typechecked
-    def route(self, path: Union[str, List[str]], *args: Optional[List], **kwargs: Optional[Dict]) -> Callable:
+    def route(
+        self,
+        path: Union[str, List[str]],
+        pre: Callable = None,
+        post: Callable = None,
+    ) -> Callable:
         """
         Used as a decorator to register a function as an appsync_router.NamedRoute
 
         :Keyword Arguments:
             * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name>``
+            * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
+            Does not modify the event being passed to the route's callable
+            * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
+            the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -367,6 +409,12 @@ class Router:
 
             setattr(func, "appsync_route", True)
 
+            if pre:
+                setattr(func, "pre", pre)
+
+            if post:
+                setattr(func, "post", post)
+
             for path in paths:
                 self.__named_routes.append(NamedRoute(path, func))
 
@@ -375,13 +423,23 @@ class Router:
         return inner
 
     @typechecked
-    def matched_route(self, regex: Union[str, Pattern], priority: Optional[int] = 0) -> Callable:
+    def matched_route(
+        self,
+        regex: Union[str, Pattern],
+        priority: Optional[int] = 0,
+        pre: Callable = None,
+        post: Callable = None
+    ) -> Callable:
         """
         Used as a decorator to register an appsync_router.MatchedRoute
 
         :Keyword Arguments:
             * *regex:* (``str|re.Pattern``): A regex string pattern or instance of re.Pattern to match routes against
             * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
+            * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
+            Does not modify the event being passed to the route's callable
+            * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
+            the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -402,6 +460,12 @@ class Router:
 
             setattr(func, "appsync_route", True)
 
+            if pre:
+                setattr(func, "pre", pre)
+
+            if post:
+                setattr(func, "post", post)
+
             self.__matched_routes.append(MatchedRoute(regex, func, priority=priority))
 
             return func
@@ -409,14 +473,23 @@ class Router:
         return inner
 
     @typechecked
-    def globbed_route(self, glob: str, priority: Optional[int] = 0) -> Callable:
+    def globbed_route(
+        self,
+        glob: str,
+        priority: Optional[int] = 0,
+        pre: Callable = None,
+        post: Callable = None
+    ) -> Callable:
         """
         Used as a decorator to register an appsync_router.GlobbedRoute
 
         :Keyword Arguments:
             * *glob:* (``str``): A Unix-style glob pattern to match routes against
             * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
-
+            * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
+            Does not modify the event being passed to the route's callable
+            * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
+            the only argument and whose result will replace the route's return value
         :returns:
             ``Callable``
         """
@@ -433,6 +506,11 @@ class Router:
             """
 
             setattr(func, "appsync_route", True)
+            if pre:
+                setattr(func, "pre", pre)
+
+            if post:
+                setattr(func, "post", post)
 
             self.__globbed_routes.append(GlobbedRoute(glob, func, priority=priority))
 
@@ -472,6 +550,12 @@ class Router:
 
         route = matched_routes[0]
 
+        if hasattr(route, "pre"):
+            route.pre(self.__event)
+
+        elif self.pre is not None:
+            self.pre(self.__event)
+
         self.__current_callable = route.callable.__name__
 
         # This allows defining a function that accepts arguments the
@@ -482,8 +566,15 @@ class Router:
             None for x in range(route.callable.__code__.co_argcount)
         ]
 
+        response = route.callable(*empty_args)
+
+        if hasattr(route, "post"):
+            response = route.post(response)
+        elif self.post:
+            response = self.post(response)
+
         res = Item(
-            route.callable(*empty_args),
+            response,
             route
         )
         self.__prev = res["value"]
@@ -521,6 +612,11 @@ class Router:
         results = Response(self.path)
 
         for route in routes_to_call:
+            if hasattr(route, "pre"):
+                route.pre(self.__event)
+            elif self.pre:
+                self.pre(self.__event)
+
             self.__current_callable = route.callable.__name__
 
             # Allow for functions to be called outside of the router by
@@ -530,6 +626,11 @@ class Router:
             ]
 
             result = route.callable(*empty_args)
+            if hasattr(route, "post"):
+                result = route.post(result)
+            elif self.post:
+                result = self.post(result)
+
             self.__prev.append(result)
 
             item = Item(result, route)
