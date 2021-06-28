@@ -1,6 +1,11 @@
 #!/usr/bin/env python3.8
-from re import compile, match, Pattern
+from re import (
+    compile,
+    match,
+    Pattern
+)
 from fnmatch import fnmatch
+from logging import getLogger
 from typing import (
     Any,
     Callable,
@@ -28,24 +33,25 @@ from .exceptions import (
 )
 
 
+logger = getLogger()
+logger.setLevel("DEBUG")
+
+
 class Router:
     """
     Creates routes from Appsync paths, expressed as *<event["info"]["parentTypeName"]>.<event["info"]["fieldName"]>*,
     to callables specied by supplied decorators or explicit calls to appsync_router.Router.add_route()
-
-    :Keyword Arguments:
-        * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
-        Does not modify the event being passed to the route's callable but can be used, for instance, as an authorizor. Must
-        accept a dictionary as the first and only argument. Setting the `pre` argument directly on a route in its decorator
-        overrides this one.
-        * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
-        the only argument and whose result will replace the route's return value. This can be used to run additional operations
-        on the response, such as filtering data, before it is returned to the router. Setting `post` on directly on any route's
-        decorator will override this one.
-
     """
 
+    __instance = None
+
     def __init__(self, pre: Callable = None, post: Callable = None):
+        if Router.__instance:
+            return
+        self.__pre = pre
+        self.__post = post
+        self.pre_paths = []
+        self.post_paths = []
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
@@ -61,10 +67,13 @@ class Router:
         self.__field_name = None
         self.__parent_type_name = None
         self.__current_callable = None
-        self.pre = pre
-        self.post = post
         #: Can be used to stash data between routes as they are called
         self.stash = Stash()
+        if pre is not None:
+            self.pre_exec()(pre)
+        if post is not None:
+            self.post_exec()(post)
+        Router.__instance = self
 
     @property
     def event(self) -> Union[Event, None]:
@@ -281,6 +290,7 @@ class Router:
         :returns:
             ``appsync_router.Route``
         """
+        logger.warning("Method Router.add_route() is deprecated and will be removed in a future version. Use decorators instead.")
 
         if isinstance(route, DefaultRoute):
             if self.default_route is not None:
@@ -356,7 +366,7 @@ class Router:
             ``Callable``
         """
         if self.default_route is not None:
-            raise RouteAlreadyExistsException("A default route has already been registered")
+            raise RouteAlreadyExistsException("A default route has already been regtered")
 
         setattr(func, "appsync_route", True)
 
@@ -421,6 +431,105 @@ class Router:
             return func
 
         return inner
+
+    @property
+    def pre(self):
+        return self.__pre
+
+    @pre.setter
+    def pre(self, func):
+        self.pre_exec()(func)
+
+    @property
+    def post(self):
+        return self.__post
+
+    @post.setter
+    def post(self, func):
+        self.post_exec()(func)
+
+    @typechecked
+    def pre_exec(
+        self,
+        path: Union[str, List[Union[str, Pattern]], Pattern, Callable] = None
+    ) -> Callable:
+        """
+        Used as a decorator to register a Callable as a `pre` router function. This callable does not modify the event passed
+        to the route's callable, but can be used, for instance, as a method for authorizing calls. This method will be overridden
+        if `pre` argument is passed explicitely to a route's decorator.
+
+        :Keyword Arguments:
+            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name> or a re.Pattern regex
+
+        :returns:
+            ``Callable``
+        """
+
+        if path is None or isinstance(path, Callable):
+            path = compile(".*")
+
+        @typechecked
+        def inner(func: Callable) -> Callable:
+            """
+            Accepts a function that accepts a Dict as its sole argument, adds the
+            function to the current class object's map of routes to functions,
+            and returns the function
+            """
+
+            self.pre_paths = path if isinstance(path, list) else [path]
+            self.__pre = func
+
+            return func
+
+        return inner
+
+    def post_exec(
+        self,
+        path: Union[str, List[Union[str, Pattern]], Pattern] = None
+    ) -> Callable:
+        """
+        Used as a decorator to register a Callable as a `post` router function. `Router.value` will be replaced by the return value of this
+        callable. This method will be overridden if `post` argument is passed explicitely to a route's decorator.
+
+        :Keyword Arguments:
+            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name> or a re.Pattern regex
+
+        :returns:
+            ``Callable``
+        """
+
+        if path is None or isinstance(path, Callable):
+            path = compile(".*")
+
+        @typechecked
+        def inner(func: Callable) -> Callable:
+            """
+            Accepts a function that accepts a Dict as its sole argument, adds the
+            function to the current class object's map of routes to functions,
+            and returns the function
+            """
+
+            self.post_paths = path if isinstance(path, list) else [path]
+            self.__post = func
+
+            return func
+
+        return inner
+
+    @typechecked
+    def route_matches(self, path: Union[str, List[Union[str, Pattern]], Pattern]) -> bool:
+        def match_path(query_path):
+            return (
+                (isinstance(query_path, str) and query_path == self.path)
+                or (isinstance(query_path, Pattern) and bool(match(query_path, self.path)))
+            )
+
+        if isinstance(path, list):
+            for p in path:
+                if match_path(p):
+                    return True
+        else:
+            return match_path(path)
 
     @typechecked
     def matched_route(
@@ -553,8 +662,11 @@ class Router:
         if hasattr(route, "pre"):
             route.pre(self.__event)
 
-        elif self.pre is not None:
-            self.pre(self.__event)
+        elif (
+            self.pre is not None
+            and self.route_matches(self.pre_paths)
+        ):
+            self.pre()
 
         self.__current_callable = route.callable.__name__
 
@@ -570,7 +682,10 @@ class Router:
 
         if hasattr(route, "post"):
             response = route.post(response)
-        elif self.post:
+        elif (
+            self.post is not None
+            and self.route_matches(self.post_paths)
+        ):
             response = self.post(response)
 
         res = Item(
@@ -614,8 +729,11 @@ class Router:
         for route in routes_to_call:
             if hasattr(route, "pre"):
                 route.pre(self.__event)
-            elif self.pre:
-                self.pre(self.__event)
+            elif (
+                self.pre is not None
+                and self.route_matches(self.pre.path)
+            ):
+                self.pre()
 
             self.__current_callable = route.callable.__name__
 
@@ -628,7 +746,10 @@ class Router:
             result = route.callable(*empty_args)
             if hasattr(route, "post"):
                 result = route.post(result)
-            elif self.post:
+            elif (
+                self.post is not None
+                and self.route_matches(self.post_paths)
+            ):
                 result = self.post(result)
 
             self.__prev.append(result)
