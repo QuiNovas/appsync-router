@@ -8,7 +8,4 @@ from .types import (
     Item,
     Response
 )
-from logging import getLogger
-
-logger = getLogger()
-logger.setLevel("DEBUG")
+from .router import logger
