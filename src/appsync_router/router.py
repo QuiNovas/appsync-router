@@ -89,8 +89,7 @@ class Router:
         self.__named_routes = []
         self.__matched_routes = []
         self.__globbed_routes = []
-        #: An instance of ``appsync_router.Route`` that will be used when the path is not resolved by any other route
-        self.default_route = None
+        self.__default_route = None
         self.__event = Event()
         self.__arguments = {}
         self.__info = {}
@@ -125,7 +124,7 @@ class Router:
         Returns the event passed to resolve() or resolve_all()
 
         :returns:
-            ``Union[list[Event], Event]``
+            ``list|Event``
 
         """
         return self.__event
@@ -184,6 +183,16 @@ class Router:
 
         """
         return self.__identity
+
+    @property
+    def default_route(self):
+        """
+        Callable that will be used if there are no matching routes
+
+        :returns:
+            ``Callable``
+        """
+        return self.__default_route
 
     @property
     def source(self) -> dict:
@@ -272,6 +281,7 @@ class Router:
 
         :returns:
             ``list``
+
         """
 
         res = self._sorted_routes(
@@ -329,7 +339,8 @@ class Router:
 
         return sorted(routes, key=sorter)
 
-    def init(self, event: dict) -> None:
+    @typechecked
+    def init(self, event: Union[dict, list]) -> None:
         """
         Reload the instance with a new event.
 
@@ -396,7 +407,7 @@ class Router:
         if isinstance(route, DefaultRoute):
             if self.default_route is not None:
                 raise RouteAlreadyExistsException("A default route already exists")
-            self.default_route = route
+            self.__default_route = route
         else:
             if isinstance(route, NamedRoute) and route.path in self.registered_paths:
                 raise RouteAlreadyExistsException(f"Route for {route.path} already exists")
@@ -431,7 +442,7 @@ class Router:
         """
 
         if isinstance(route, DefaultRoute):
-            self.default_route = None
+            self.__default_route = None
         else:
             if route not in self.all_routes:
                 raise NoRouteFoundException(f"Route {route} is not in the routing table.")
@@ -477,7 +488,7 @@ class Router:
         if post:
             setattr(func, "post", post)
 
-        self.default_route = DefaultRoute(func)
+        self.__default_route = DefaultRoute(func)
 
         return func
 
@@ -535,6 +546,12 @@ class Router:
 
     @property
     def pre(self):
+        """
+        Callable registered to be executed before each route
+
+        :returns:
+            ``Callable``
+        """
         return self.__pre
 
     @pre.setter
@@ -543,6 +560,12 @@ class Router:
 
     @property
     def post(self):
+        """
+        Callable registered to be executed after each route
+
+        :returns:
+            ``Callable``
+        """
         return self.__post
 
     @post.setter
@@ -618,7 +641,20 @@ class Router:
         return inner
 
     @typechecked
-    def route_matches(self, path: Union[str, List[Union[str, Pattern]], Pattern]) -> bool:
+    def route_matches(
+        self,
+        path: Union[str, List[Union[str, Pattern]], Pattern]
+    ) -> bool:
+        """
+        Returns True if the supplied path (or any item if a list) matches a route
+
+        :Keyword Arguments:
+            * *path:* (``re.pattern|str|list``): A path, re.Pattern, or list of path/patterns to match against
+
+        :returns:
+            ``bool``
+
+        """
         def match_path(query_path):
             return (
                 (isinstance(query_path, str) and query_path == self.path)
@@ -654,6 +690,7 @@ class Router:
         :returns:
             ``Callable``
         """
+
         if isinstance(regex, str):
             regex = compile(regex)
 
@@ -747,6 +784,9 @@ class Router:
         :returns:
             ``appsync_router.Item``
         """
+
+        if event:
+            self.__parse_event()
 
         if not self.__event:
             raise ValueError(
