@@ -81,6 +81,7 @@ class Router:
         *args,
         **kwargs
     ):
+        self.__pause_batch = False
         self.__batch = False
         self.__executor = ThreadPoolExecutor()
         self.pre_paths = []
@@ -109,12 +110,23 @@ class Router:
 
     @property
     def batch(self) -> bool:
+        """
+        Flag showing whether or not the router received an event from Appsync's BatchInvoke
+
+        :returns:
+            ``bool``
+
+        """
         return self.__batch
 
     @property
-    def event(self) -> Union[Event, None]:
+    def event(self) -> Union[Event, List[Event], None]:
         """
         Returns the event passed to resolve() or resolve_all()
+
+        :returns:
+            ``Union[list[Event], Event]``
+
         """
         return self.__event
 
@@ -122,6 +134,10 @@ class Router:
     def current_callable(self) -> Union[str, None]:
         """
         The name of the current callable being called in the route.
+
+        :returns:
+            ``str``
+
         """
         return self.__current_callable
 
@@ -129,6 +145,10 @@ class Router:
     def field_name(self) -> Union[str, None]:
         """
         Same as event["info"]["fieldName"]
+
+        :returns:
+            ``str``
+
         """
         return self.__field_name
 
@@ -136,27 +156,43 @@ class Router:
     def parent_type_name(self) -> Union[str, None]:
         """
         Same as event["info"]["parentTypeName"]
+
+        :returns:
+            ``str``
+
         """
         return self.__parent_type_name
 
     @property
     def path(self) -> Union[str, None]:
         """
-            The current matched path being called
+        The current matched path being called
+
+        :returns:
+            ``str``
+
         """
         return self.__path
 
     @property
     def identity(self) -> dict:
         """
-        Same as event["identity"]
+        Same as ``event["identity"]``
+
+        :returns:
+            ``dict``
+
         """
         return self.__identity
 
     @property
     def source(self) -> dict:
         """
-        Same as event["source"]
+        Same as ``event["source"]``
+
+        :returns:
+            ``dict``
+
         """
         return self.__source
 
@@ -165,20 +201,31 @@ class Router:
         """
         When resolve() is called this is set to the value returned by the callable.
         For resolve_all() it is a list of returned values in the order they were returned.
+
+        :returns:
+            ``Union[None, dict, list]``
+
         """
         return self.__prev
 
     @property
     def arguments(self) -> dict:
         """
-        Same as event["arguments"]
+        Same as ``event["arguments"]``
+
+        :returns:
+            ``dict``
+
         """
         return self.__arguments
 
     @property
     def info(self):
         """
-        Same as event["info"]
+        Same as ``event["info"]``
+
+        :returns:
+            ``dict``
         """
         return self.__info
 
@@ -186,8 +233,10 @@ class Router:
     def named_routes(self) -> List[NamedRoute]:
         """
         Returns a list containing all routes of type appsync_router.NamedRoute
-            :returns:
-                ``list``
+
+        :returns:
+            ``list``
+
         """
 
         return self.__named_routes
@@ -196,8 +245,10 @@ class Router:
     def matched_routes(self) -> List[MatchedRoute]:
         """
         Returns a list containing all routes of type appsync_router.MatchedRoute
-            :returns:
-                ``list``
+
+        :returns:
+            ``list``
+
         """
 
         return self._sorted_routes(self.__matched_routes)
@@ -206,8 +257,10 @@ class Router:
     def globbed_routes(self) -> List[GlobbedRoute]:
         """
         Returns a list containing all routes of type appsync_router.GlobbedRoute
-            :returns:
-                ``list``
+
+        :returns:
+            ``list``
+
         """
 
         return self._sorted_routes(self.__globbed_routes)
@@ -216,8 +269,9 @@ class Router:
     def all_routes(self) -> List[Route]:
         """
         Returns a list containing all registered routes
-            :returns:
-                ``list``
+
+        :returns:
+            ``list``
         """
 
         res = self._sorted_routes(
@@ -241,6 +295,7 @@ class Router:
 
         :returns:
             ``list``
+
         """
 
         return [
@@ -274,8 +329,18 @@ class Router:
 
         return sorted(routes, key=sorter)
 
-    def init(self, data: dict):
-        self.__parse_event(data)
+    def init(self, event: dict) -> None:
+        """
+        Reload the instance with a new event.
+
+        :params:
+            * *event:* (``dict``): An AWS Lambda event as a dict
+
+        :returns:
+            ``None``
+
+        """
+        self.__parse_event(event)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
         """
@@ -635,6 +700,7 @@ class Router:
             Does not modify the event being passed to the route's callable
             * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
             the only argument and whose result will replace the route's return value
+
         :returns:
             ``Callable``
         """
@@ -664,37 +730,47 @@ class Router:
         return inner
 
     @typechecked
-    def resolve_batch(
+    def batch_resolve(
         self,
         event: Optional[list] = None,
         threaded: Optional[bool] = False
-    ) -> List[Item]:
+    ) -> Item:
+        """
+        Handles events that come from Appsync's ``BatchInvoke``, passing each item in ``event`` to ``resolve()``
 
+        :Keyword Arguments:
+            * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
+            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+            that was created by ``__init__()`` or ``init()`` will be used.
+            * *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
+
+        :returns:
+            ``appsync_router.Item``
+        """
+
+        if not self.__event:
+            raise ValueError(
+                "You must either call Router().init(event) or pass event as argument to resolve()")
+
+        self.__pause_batch = True
         copied_event = deepcopy(self.event)
-        items = []
         if threaded:
-            futures = []
-            for event in copied_event:
-                futures.append(
-                    self.__executor.submit(
-                        self.resolve,
-                        event=event,
-                        no_batch=True
-                    )
-                )
-            for future in as_completed(futures):
-                items.append(future.result())
-
+            items = list(self.__executor.map(self.resolve, copied_event))
         else:
-            for event in copied_event:
-                items.append(self.resolve(event=event, no_batch=True))
+            # We treat each item in the original event as if it were its own event
+            items = list(map(self.resolve, copied_event))
 
+        # Restore back to the original event
         self.__event = copied_event
 
+        # We can assume that we have at lease one item, otherwise Appsync would puke anyhow
         route = items[0].route
+
+        # Merge
         values = [
             x.value for x in items
         ]
+        self.__pause_batch = False
 
         return Item(values, route)
 
@@ -702,29 +778,34 @@ class Router:
     def resolve(
         self,
         event: Optional[dict] = None,
-        threaded: Optional[bool] = None,
-        no_batch: Optional[bool] = False
+        threaded: Optional[bool] = False,
     ) -> Item:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
         ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
 
-        :params:
-            * *event:* An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum, contain the info Dict that Appsync places inside of the Lambda event.
+        :Keyword Arguments:
+            * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
+            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+            that was created by ``__init__()`` or ``init()`` will be used.
+            *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
 
         :returns:
             ``appsync_router.Item``
         """
 
-        if isinstance(self.event, list) and not no_batch:
-            return self.resolve_batch(threaded=threaded)
+        # If we have a list then treat it as a BatchInvoke. self.__pause_batch flat is set in batch_resolve()
+        # to prevent recurstion and then set back to False when done
+        if isinstance(self.event, list) and not self.__pause_batch:
+            return self.batch_resolve(threaded=threaded)
 
         if event:
             self.__parse_event(event)
 
         if not self.__event:
-            raise ValueError("You must either call Router().init(event) or pass event as argument to resolve()")
+            raise ValueError(
+                "You must either call Router().init(event) or pass event as argument to resolve()")
 
         matched_routes = self.get_routes(self.path, include_default=False)
 
@@ -791,8 +872,10 @@ class Router:
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
         ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
 
-        :params:
-            * *event:* (``dict``) - An event that matches the format passed to Lambda from Appsync. The event arg must, at minimum, contain the info Dict that Appsync places inside event.
+        :Keyword Arguments:
+            * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
+            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+            that was created by ``__init__()`` or ``init()`` will be used.
             * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
 
         :returns:
