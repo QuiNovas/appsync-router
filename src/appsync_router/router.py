@@ -116,6 +116,7 @@ class Router:
             ``bool``
 
         """
+
         return self.__batch
 
     @property
@@ -208,8 +209,7 @@ class Router:
     @property
     def prev(self) -> Union[None, dict, list]:
         """
-        When resolve() is called this is set to the value returned by the callable.
-        For resolve_all() it is a list of returned values in the order they were returned.
+        When resolve() is called this is set to the value returned by the callable. For resolve_all() it is a list of returned values in the order they were returned.
 
         :returns:
             ``Union[None, dict, list]``
@@ -229,7 +229,7 @@ class Router:
         return self.__arguments
 
     @property
-    def info(self):
+    def info(self) -> dict:
         """
         Same as ``event["info"]``
 
@@ -345,12 +345,13 @@ class Router:
         Reload the instance with a new event.
 
         :params:
-            * *event:* (``dict``): An AWS Lambda event as a dict
+            * *event:* (``dict``): An AWS Lambda event as a dict or a list of dicts
 
         :returns:
             ``None``
 
         """
+
         self.__parse_event(event)
 
     def get_routes(self, path: str, include_default: Optional[bool] = True, to_dict=False) -> List[Union[Route, Dict]]:
@@ -776,8 +777,8 @@ class Router:
         Handles events that come from Appsync's ``BatchInvoke``, passing each item in ``event`` to ``resolve()``
 
         :Keyword Arguments:
-            * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
-            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+            * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must,
+            at minimum, contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
             that was created by ``__init__()`` or ``init()`` will be used.
             * *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
 

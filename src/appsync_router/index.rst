@@ -268,45 +268,40 @@ Passing ``--no-lambda`` to ``appsync-router make-app`` will create a resolvers p
 You can also execute a route directly by calling ``appsync-router execute-resolver --event``. This passes the event directly to the route's callable instead of the handler of a Lambda
 
 
-Classes
-=======
+appsync\_router package
+=======================
 
-The Router class
-----------------
-.. autoclass:: appsync_router.Router
-   :members:
+Submodules
+----------
 
-Route types
------------
-.. autoclass:: appsync_router.Item
-   :members:
+appsync\_router.exceptions module
+---------------------------------
 
-.. autoclass:: appsync_router.NamedRoute
-   :members:
-
-.. autoclass:: appsync_router.MatchedRoute
-   :members:
-
-.. autoclass:: appsync_router.GlobbedRoute
-   :members:
-
-.. autoclass:: appsync_router.DefaultRoute
-   :members:
-
-Responses
----------
-.. autoclass:: appsync_router.Response
-   :members:
-
-Exceptions
-==========
 .. automodule:: appsync_router.exceptions
    :members:
+   :undoc-members:
+   :show-inheritance:
 
-Indices and tables
-==================
+appsync\_router.router module
+-----------------------------
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. automodule:: appsync_router.router
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
+appsync\_router.types module
+----------------------------
+
+.. automodule:: appsync_router.types
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: appsync_router
+   :members:
+   :undoc-members:
+   :show-inheritance:
