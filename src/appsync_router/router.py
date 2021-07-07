@@ -1,4 +1,9 @@
 #!/usr/bin/env python3.8
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    as_completed
+)
+from copy import deepcopy
 from re import (
     compile,
     match,
@@ -14,7 +19,7 @@ from typing import (
     Union,
     Optional
 )
-from typeguard import typechecked
+import typeguard
 from .types import (
     Route,
     NamedRoute,
@@ -35,6 +40,7 @@ from .exceptions import (
 
 logger = getLogger()
 logger.setLevel("DEBUG")
+typechecked = lambda x: x
 
 
 class Router:
@@ -44,12 +50,39 @@ class Router:
     """
 
     __instance = None
+    __pre = None
+    __post = None
 
-    def __init__(self, pre: Callable = None, post: Callable = None):
-        if Router.__instance:
-            return
-        self.__pre = pre
-        self.__post = post
+    def __new__(
+        cls,
+        pre: Callable = None,
+        post: Callable = None,
+        typechecking: bool = False,
+        *args,
+        **kwargs
+    ):
+        global typechecked
+        if typechecking:
+            typechecked = typeguard.typechecked
+
+        if cls.__instance is None:
+            cls.__pre = pre
+            cls.__post = post
+            cls.__instance = super().__new__(
+                cls,
+                *args,
+                **kwargs
+            )
+
+        return cls.__instance
+
+    def __init__(
+        self,
+        *args,
+        **kwargs
+    ):
+        self.__batch = False
+        self.__executor = ThreadPoolExecutor()
         self.pre_paths = []
         self.post_paths = []
         self.__named_routes = []
@@ -69,11 +102,14 @@ class Router:
         self.__current_callable = None
         #: Can be used to stash data between routes as they are called
         self.stash = Stash()
-        if pre is not None:
-            self.pre_exec()(pre)
-        if post is not None:
-            self.post_exec()(post)
-        Router.__instance = self
+        if self.__pre is not None:
+            self.pre_exec()(self.__pre)
+        if self.__post is not None:
+            self.post_exec()(self.__post)
+
+    @property
+    def batch(self) -> bool:
+        return self.__batch
 
     @property
     def event(self) -> Union[Event, None]:
@@ -628,7 +664,47 @@ class Router:
         return inner
 
     @typechecked
-    def resolve(self, event: Optional[dict] = None) -> Item:
+    def resolve_batch(
+        self,
+        event: Optional[list] = None,
+        threaded: Optional[bool] = False
+    ) -> List[Item]:
+
+        copied_event = deepcopy(self.event)
+        items = []
+        if threaded:
+            futures = []
+            for event in copied_event:
+                futures.append(
+                    self.__executor.submit(
+                        self.resolve,
+                        event=event,
+                        no_batch=True
+                    )
+                )
+            for future in as_completed(futures):
+                items.append(future.result())
+
+        else:
+            for event in copied_event:
+                items.append(self.resolve(event=event, no_batch=True))
+
+        self.__event = copied_event
+
+        route = items[0].route
+        values = [
+            x.value for x in items
+        ]
+
+        return Item(values, route)
+
+    @typechecked
+    def resolve(
+        self,
+        event: Optional[dict] = None,
+        threaded: Optional[bool] = None,
+        no_batch: Optional[bool] = False
+    ) -> Item:
         """
         Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
@@ -640,6 +716,10 @@ class Router:
         :returns:
             ``appsync_router.Item``
         """
+
+        if isinstance(self.event, list) and not no_batch:
+            return self.resolve_batch(threaded=threaded)
+
         if event:
             self.__parse_event(event)
 
@@ -670,6 +750,20 @@ class Router:
 
         self.__current_callable = route.callable.__name__
 
+        res = self._exec_route_func(route)
+        self.__prev = res
+
+        return Item(
+            res,
+            route
+        )
+
+    @typechecked
+    def _exec_route_func(
+        self,
+        route: Route
+    ) -> Any:
+
         # This allows defining a function that accepts arguments the
         # router doesn't care about so it can also be used outside of the router
         # If the args are type checked then the function will have to allow for a
@@ -688,13 +782,7 @@ class Router:
         ):
             response = self.post(response)
 
-        res = Item(
-            response,
-            route
-        )
-        self.__prev = res["value"]
-
-        return res
+        return response
 
     @typechecked
     def resolve_all(self, event: Optional[dict] = None) -> Response:
@@ -811,20 +899,35 @@ class Router:
 
         return path
 
-    def __parse_event(self, event: dict):
-        if not isinstance(event, dict):
-            raise TypeError("event must be a dict")
+    def __parse_event(self, event: Union[dict, list]):
+        if not isinstance(event, (dict, list)):
+            raise TypeError("event must be of type `dict` or `list`")
 
+        if not event:
+            raise ValueError("Event cannot be empty")
+
+        if isinstance(event, list):
+            self.__batch = True
+            self.__event = [
+                Event(x) for x in event
+            ]
+        else:
+            self.__event = Event(event)
+            self.__batch = False
+
+        self.__source = [
+            x["source"] for x in event
+        ] if self.__batch else (event.get("source") or {})
+
+        event = event[0] if self.__batch else event
         if not isinstance(event.get("info"), dict):
             raise TypeError("Event must contain an info key that contains a dict")
 
         if not (event["info"].get("parentTypeName") and event["info"].get("fieldName")):
             raise ValueError('event["info"] must contain fieldName and parentTypeName')
 
-        self.__event = Event(event)
         self.__arguments = event.get("arguments") or {}
         self.__info = event["info"] or {}
-        self.__source = event.get("source") or {}
         self.__identity = event.get("identity") or {}
         self.__parent_type_name = event["info"]["parentTypeName"]
         self.__field_name = event["info"]["fieldName"]
