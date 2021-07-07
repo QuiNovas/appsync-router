@@ -1,8 +1,5 @@
 #!/usr/bin/env python3.8
-from concurrent.futures import (
-    ThreadPoolExecutor,
-    as_completed
-)
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from re import (
     compile,
@@ -209,7 +206,8 @@ class Router:
     @property
     def prev(self) -> Union[None, dict, list]:
         """
-        When resolve() is called this is set to the value returned by the callable. For resolve_all() it is a list of returned values in the order they were returned.
+        When resolve() is called this is set to the value returned by the callable. For resolve_all() it is a
+        list of returned values in the order they were returned.
 
         :returns:
             ``Union[None, dict, list]``
@@ -471,9 +469,9 @@ class Router:
 
         :Keyword Arguments:
             * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
-            Does not modify the event being passed to the route's callable
+              Does not modify the event being passed to the route's callable
             * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
-            the only argument and whose result will replace the route's return value
+              the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -506,9 +504,9 @@ class Router:
         :Keyword Arguments:
             * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name>``
             * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
-            Does not modify the event being passed to the route's callable
+              Does not modify the event being passed to the route's callable
             * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
-            the only argument and whose result will replace the route's return value
+              the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -579,12 +577,12 @@ class Router:
         path: Union[str, List[Union[str, Pattern]], Pattern, Callable] = None
     ) -> Callable:
         """
-        Used as a decorator to register a Callable as a `pre` router function. This callable does not modify the event passed
+        Used as a decorator to register a Callable as a ``pre`` router function. This callable does not modify the event passed
         to the route's callable, but can be used, for instance, as a method for authorizing calls. This method will be overridden
-        if `pre` argument is passed explicitely to a route's decorator.
+        if ``pre`` argument is passed explicitely to a route's decorator.
 
         :Keyword Arguments:
-            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name> or a re.Pattern regex
+            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name>`` or a re.Pattern regex
 
         :returns:
             ``Callable``
@@ -613,11 +611,11 @@ class Router:
         path: Union[str, List[Union[str, Pattern]], Pattern] = None
     ) -> Callable:
         """
-        Used as a decorator to register a Callable as a `post` router function. `Router.value` will be replaced by the return value of this
-        callable. This method will be overridden if `post` argument is passed explicitely to a route's decorator.
+        Used as a decorator to register a Callable as a ``post`` router function. ``Router.value`` will be replaced by the return value of this
+        callable. This method will be overridden if ``post`` argument is passed explicitely to a route's decorator.
 
         :Keyword Arguments:
-            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name> or a re.Pattern regex
+            * *path:* (``str``): An appsync path expressed as ``<parent type name>.<field name>`` or a re.Pattern regex
 
         :returns:
             ``Callable``
@@ -684,9 +682,9 @@ class Router:
             * *regex:* (``str|re.Pattern``): A regex string pattern or instance of re.Pattern to match routes against
             * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
             * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
-            Does not modify the event being passed to the route's callable
+              Does not modify the event being passed to the route's callable
             * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
-            the only argument and whose result will replace the route's return value
+              the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -735,9 +733,9 @@ class Router:
             * *glob:* (``str``): A Unix-style glob pattern to match routes against
             * *priority:* (``int``): An optional priority to set on the route. See the section on priorities for more
             * *pre:* (``Callable``): An optional callable that will be called with router.event passed as the only argument.
-            Does not modify the event being passed to the route's callable
+              Does not modify the event being passed to the route's callable
             * *post:* (``Callable``): An optional callable that will be called with the results of the route's callable as
-            the only argument and whose result will replace the route's return value
+              the only argument and whose result will replace the route's return value
 
         :returns:
             ``Callable``
@@ -778,8 +776,8 @@ class Router:
 
         :Keyword Arguments:
             * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must,
-            at minimum, contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
-            that was created by ``__init__()`` or ``init()`` will be used.
+              at minimum, contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+              that was created by ``__init__()`` or ``init()`` will be used.
             * *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
 
         :returns:
@@ -822,18 +820,19 @@ class Router:
         threaded: Optional[bool] = False,
     ) -> Item:
         """
-        Looks up the route for a call based on the parentTypeName and fieldName in event["info"]. If ``self.chain`` is True then the first route will be passed ``event``
+        Looks up the route for a call based on the parentTypeName and fieldName in ``event["info"]``. If ``self.chain`` is True then the first route will be passed ``event``
         and any subsequent matches will be passed the result of the prior route. If the path doesn't match a registered route and ``self.default_route`` is None, then
         ``appsync_tools.exceptions.NonExistentRoute`` will be raised.
 
         :Keyword Arguments:
             * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
-            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
-            that was created by ``__init__()`` or ``init()`` will be used.
-            *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
+              contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+              that was created by ``__init__()`` or ``init()`` will be used.
+            * *threaded:* (``bool``): If True then ThreadPoolExecutor will be used for resolving each event item
 
         :returns:
             ``appsync_router.Item``
+
         """
 
         # If we have a list then treat it as a BatchInvoke. self.__pause_batch flat is set in batch_resolve()
@@ -915,8 +914,8 @@ class Router:
 
         :Keyword Arguments:
             * *event:* (``dict``): An event that matches the format passed to Lambda from an appsync call. The event arg must, at minimum,
-            contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
-            that was created by ``__init__()`` or ``init()`` will be used.
+              contain the info Dict that Appsync places inside of the Lambda event. If no event is passed then ``appsync_router.event``
+              that was created by ``__init__()`` or ``init()`` will be used.
             * *chain:* (``bool``): If True then as then the first resolved route will accept ``event`` whith each subsequent matched route being passed the result of the prior
 
         :returns:
