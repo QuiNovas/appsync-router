@@ -1,6 +1,6 @@
 # appsync-router
 
-> **Version 4.0.0 is a breaking change from version 3.x.x. Please review the documentation before upgrading**
+> **WARNING - Version 4.0.0 is a breaking change from version 3.x.x. Please review the documentation before upgrading**
 
 A micro-library that allows for the registration of functions corresponding to
 AWS AppSync routes. This allows for cleanly creating a single AWS Lambda datasource
