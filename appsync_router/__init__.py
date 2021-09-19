@@ -5,9 +5,8 @@ from typing import Any, Callable, Union
 
 from multipledispatch import dispatch
 
-from .context import Info
 from .exceptions import (
-    MultipleRoutesFoundExcepion,
+    MultipleRoutesFoundException,
     NoRouteFoundException,
     RouteAlreadyExistsException,
 )
@@ -147,7 +146,7 @@ def route_event(
     for route in frozenset(__ROUTES):
         if route.match(info):
             if context_route:
-                raise MultipleRoutesFoundExcepion(info=info)
+                raise MultipleRoutesFoundException(info=info)
             context_route = route
             if short_circuit:
                 break

@@ -29,7 +29,7 @@ class NoRouteFoundException(AppsyncRouterException):
         super().__init__(*args)
 
 
-class MultipleRoutesFoundExcepion(AppsyncRouterException):
+class MultipleRoutesFoundException(AppsyncRouterException):
     def __init__(self, *args, info: Info = None):
         if not args:
             default_message = "Multiple matches found"
