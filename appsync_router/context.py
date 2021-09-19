@@ -1,35 +1,35 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict, Union
+from typing import Any, TypedDict, Union
 
 
 class Context(TypedDict, total=False):
-    arguments: Dict[str, Any]
+    arguments: dict[str, Any]
     identity: Union[CognitoUserPoolIdentity, IamIdentity, LambdaIdentity]
     info: Info
     prev: Prev
     request: Request
-    source: Dict[str, Any]
-    stash: Dict[Any, Any]
+    source: dict[str, Any]
+    stash: dict[Any, Any]
 
 
 class Prev(TypedDict):
-    result: Dict[str, Any]
+    result: dict[str, Any]
 
 
 class Request(TypedDict):
-    headers: Dict[str, str]
+    headers: dict[str, str]
 
 
 class Info(TypedDict, total=False):
     fieldName: str
     parentTypeName: str
     selectionSetGraphQL: str
-    selectionSetList: List[str]
-    variables: Dict[str, Any]
+    selectionSetList: list[str]
+    variables: dict[str, Any]
 
 
-LambdaIdentity = Dict[Any, Any]
+LambdaIdentity = dict[Any, Any]
 
 
 class IamIdentity(TypedDict, total=False):
@@ -38,15 +38,15 @@ class IamIdentity(TypedDict, total=False):
     cognitoIdentityAuthType: str
     cognitoIdentityId: str
     cognitoIdentityPoolId: str
-    sourceIp: List[str]
+    sourceIp: list[str]
     username: str
     userArn: str
 
 
 class CognitoUserPoolIdentity(TypedDict):
-    claims: Dict[str, Any]
+    claims: dict[str, Any]
     defaultAuthStrategy: str
     issuer: str
-    sourceIp: List[str]
+    sourceIp: list[str]
     sub: str
     username: str
