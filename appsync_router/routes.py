@@ -24,7 +24,7 @@ class Route:
         return hash(self.__match)
 
     def __call__(self, context: Context) -> Any:
-        return self.__handler(context=context)
+        return self.__handler(context)
 
     def __str__(self) -> str:
         return f"{type(self).__name__}: {self.__match} -> {self.__handler.__module__}.{self.__handler.__name__}"
