@@ -57,13 +57,14 @@ def update_route(route: Route) -> Route:
     return route
 
 
-RouteHandlerDecorator = Callable[[RouteHandler], Route]
+RouteHandlerDecorator = Callable[[RouteHandler], RouteHandler]
 
 
 @dispatch(DiscreteMatch)
 def discrete_route(match: DiscreteMatch) -> RouteHandlerDecorator:
-    def register_route(handler: RouteHandler) -> Route:
-        return add_route(DiscreteRoute(handler=handler, match=match))
+    def register_route(handler: RouteHandler) -> RouteHandler:
+        add_route(DiscreteRoute(handler=handler, match=match))
+        return handler
 
     return register_route
 
@@ -83,16 +84,18 @@ def multi_route(
     for match in matches:
         _matches.add(DiscreteMatch(*match))
 
-    def register_route(handler: RouteHandler) -> Route:
-        return add_route(MultiRoute(handler=handler, match=_matches))
+    def register_route(handler: RouteHandler) -> RouteHandler:
+        add_route(MultiRoute(handler=handler, match=_matches))
+        return handler
 
     return register_route
 
 
 @dispatch(PatternMatch)
 def pattern_route(match: PatternMatch) -> RouteHandlerDecorator:
-    def register_route(handler: RouteHandler) -> Route:
-        return add_route(PatternRoute(handler=handler, match=match))
+    def register_route(handler: RouteHandler) -> RouteHandler:
+        add_route(PatternRoute(handler=handler, match=match))
+        return handler
 
     return register_route
 
@@ -123,8 +126,9 @@ def pattern_route(parentTypeName: re.Pattern, fieldName: str) -> RouteHandlerDec
 
 @dispatch(GlobMatch)
 def glob_route(match: GlobMatch) -> RouteHandlerDecorator:
-    def register_route(handler: RouteHandler) -> Route:
-        return add_route(GlobRoute(handler=handler, match=match))
+    def register_route(handler: RouteHandler) -> RouteHandler:
+        add_route(GlobRoute(handler=handler, match=match))
+        return handler
 
     return register_route
 
