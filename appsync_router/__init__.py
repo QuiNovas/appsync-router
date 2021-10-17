@@ -61,7 +61,7 @@ RouteHandlerDecorator = Callable[[RouteHandler], RouteHandler]
 
 
 @dispatch(DiscreteMatch)
-def discrete_route(match: DiscreteMatch) -> RouteHandlerDecorator:
+def discrete_route(match: DiscreteMatch, /) -> RouteHandlerDecorator:
     def register_route(handler: RouteHandler) -> RouteHandler:
         add_route(DiscreteRoute(handler=handler, match=match))
         return handler
@@ -70,7 +70,7 @@ def discrete_route(match: DiscreteMatch) -> RouteHandlerDecorator:
 
 
 @dispatch(str, str)
-def discrete_route(parentTypeName: str, fieldName: str) -> RouteHandlerDecorator:
+def discrete_route(parentTypeName: str, fieldName: str, /) -> RouteHandlerDecorator:
     return discrete_route(
         DiscreteMatch(parentTypeName=parentTypeName, fieldName=fieldName)
     )
@@ -92,7 +92,7 @@ def multi_route(
 
 
 @dispatch(PatternMatch)
-def pattern_route(match: PatternMatch) -> RouteHandlerDecorator:
+def pattern_route(match: PatternMatch, /) -> RouteHandlerDecorator:
     def register_route(handler: RouteHandler) -> RouteHandler:
         add_route(PatternRoute(handler=handler, match=match))
         return handler
@@ -101,13 +101,13 @@ def pattern_route(match: PatternMatch) -> RouteHandlerDecorator:
 
 
 @dispatch(str, str)
-def pattern_route(parentTypeName: str, fieldName: str) -> RouteHandlerDecorator:
+def pattern_route(parentTypeName: str, fieldName: str, /) -> RouteHandlerDecorator:
     return pattern_route(re.compile(parentTypeName), re.compile(fieldName))
 
 
 @dispatch(re.Pattern, re.Pattern)
 def pattern_route(
-    parentTypeName: re.Pattern, fieldName: re.Pattern
+    parentTypeName: re.Pattern, fieldName: re.Pattern, /
 ) -> RouteHandlerDecorator:
     return pattern_route(
         PatternMatch(parentTypeName=parentTypeName, fieldName=fieldName)
@@ -115,17 +115,21 @@ def pattern_route(
 
 
 @dispatch(str, re.Pattern)
-def pattern_route(parentTypeName: str, fieldName: re.Pattern) -> RouteHandlerDecorator:
+def pattern_route(
+    parentTypeName: str, fieldName: re.Pattern, /
+) -> RouteHandlerDecorator:
     return pattern_route(re.compile(parentTypeName), fieldName)
 
 
 @dispatch(re.Pattern, str)
-def pattern_route(parentTypeName: re.Pattern, fieldName: str) -> RouteHandlerDecorator:
+def pattern_route(
+    parentTypeName: re.Pattern, fieldName: str, /
+) -> RouteHandlerDecorator:
     return pattern_route(parentTypeName, re.compile(fieldName))
 
 
 @dispatch(GlobMatch)
-def glob_route(match: GlobMatch) -> RouteHandlerDecorator:
+def glob_route(match: GlobMatch, /) -> RouteHandlerDecorator:
     def register_route(handler: RouteHandler) -> RouteHandler:
         add_route(GlobRoute(handler=handler, match=match))
         return handler
@@ -134,7 +138,7 @@ def glob_route(match: GlobMatch) -> RouteHandlerDecorator:
 
 
 @dispatch(str, str)
-def glob_route(parentTypeName: str, fieldName: str) -> RouteHandlerDecorator:
+def glob_route(parentTypeName: str, fieldName: str, /) -> RouteHandlerDecorator:
     return glob_route(GlobMatch(parentTypeName=parentTypeName, fieldName=fieldName))
 
 
